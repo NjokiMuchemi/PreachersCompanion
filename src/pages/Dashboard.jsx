@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Search, BookOpen, Star, Trash2, RotateCcw } from "lucide-react";
+import { Plus, Search, BookOpen, Star, Trash2, RotateCcw, Settings, LogOut } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
@@ -147,6 +147,12 @@ function Dashboard() {
           <p style={getNavStyle(activeTab === "trash")} onClick={() => setActiveTab("trash")}>
             Trash
           </p>
+        <p
+  style={getNavStyle(false)}
+  onClick={() => navigate("/settings")}
+>
+  Settings
+</p>
         </nav>
       </aside>
 
