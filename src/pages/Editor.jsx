@@ -1,8 +1,23 @@
 import { useEffect, useState } from "react";
 import {
-  Save, Download, Trash2, Bold, Italic, Underline as UnderlineIcon,
-  List, Heading1, AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  Highlighter, Palette, ImagePlus, BookOpen, SearchA, rrowLeft
+  Save,
+  Download,
+  Trash2,
+  Bold,
+  Italic,
+  Underline as UnderlineIcon,
+  List,
+  Heading1,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  Highlighter,
+  Palette,
+  ImagePlus,
+  BookOpen,
+  Search,
+  ArrowLeft,
 } from "lucide-react";
 
 import jsPDF from "jspdf";
