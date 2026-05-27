@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Plus, Search, BookOpen } from "lucide-react";
+import { Plus, Search, BookOpen, Star, Trash2, RotateCcw } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
 function Dashboard() {
   const [sermons, setSermons] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -33,7 +34,70 @@ function Dashboard() {
     setSermons(data || []);
   }
 
-  const filteredSermons = sermons.filter((sermon) => {
+  async function toggleFavorite(sermon) {
+    const { error } = await supabase
+      .from("sermons")
+      .update({ is_favorite: !sermon.is_favorite })
+      .eq("id", sermon.id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    fetchSermons();
+  }
+
+  async function moveToTrash(sermon) {
+    const confirmTrash = window.confirm("Move this sermon to Trash?");
+    if (!confirmTrash) return;
+
+    const { error } = await supabase
+      .from("sermons")
+      .update({ is_deleted: true })
+      .eq("id", sermon.id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    fetchSermons();
+  }
+
+  async function restoreSermon(sermon) {
+    const { error } = await supabase
+      .from("sermons")
+      .update({ is_deleted: false })
+      .eq("id", sermon.id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    fetchSermons();
+  }
+
+  let displayedSermons = sermons;
+
+  if (activeTab === "all") {
+    displayedSermons = sermons.filter((s) => !s.is_deleted);
+  }
+
+  if (activeTab === "favorites") {
+    displayedSermons = sermons.filter((s) => s.is_favorite && !s.is_deleted);
+  }
+
+  if (activeTab === "trash") {
+    displayedSermons = sermons.filter((s) => s.is_deleted);
+  }
+
+  if (activeTab === "categories") {
+    displayedSermons = sermons.filter((s) => !s.is_deleted);
+  }
+
+  const filteredSermons = displayedSermons.filter((sermon) => {
     const search = searchTerm.toLowerCase();
 
     return (
@@ -44,6 +108,17 @@ function Dashboard() {
     );
   });
 
+  const groupedByCategory = filteredSermons.reduce((groups, sermon) => {
+    const category = sermon.category || "Uncategorized";
+
+    if (!groups[category]) {
+      groups[category] = [];
+    }
+
+    groups[category].push(sermon);
+    return groups;
+  }, {});
+
   return (
     <div style={pageStyle}>
       <aside style={sidebarStyle}>
@@ -51,17 +126,40 @@ function Dashboard() {
         <p style={mutedText}>Sermon Workspace</p>
 
         <nav style={{ marginTop: "40px" }}>
-          <p style={navItem}>All Sermons</p>
-          <p style={navItem}>Categories</p>
-          <p style={navItem}>Favorites</p>
-          <p style={navItem}>Trash</p>
+          <p style={getNavStyle(activeTab === "all")} onClick={() => setActiveTab("all")}>
+            All Sermons
+          </p>
+
+          <p
+            style={getNavStyle(activeTab === "categories")}
+            onClick={() => setActiveTab("categories")}
+          >
+            Categories
+          </p>
+
+          <p
+            style={getNavStyle(activeTab === "favorites")}
+            onClick={() => setActiveTab("favorites")}
+          >
+            Favorites
+          </p>
+
+          <p style={getNavStyle(activeTab === "trash")} onClick={() => setActiveTab("trash")}>
+            Trash
+          </p>
         </nav>
       </aside>
 
       <main style={mainStyle}>
         <div style={topBarStyle}>
           <div>
-            <h1 style={headingStyle}>My Sermons</h1>
+            <h1 style={headingStyle}>
+              {activeTab === "all" && "My Sermons"}
+              {activeTab === "categories" && "Categories"}
+              {activeTab === "favorites" && "Favorite Sermons"}
+              {activeTab === "trash" && "Trash"}
+            </h1>
+
             <p style={subtitleStyle}>Organize and access your ministry notes.</p>
           </div>
 
@@ -81,42 +179,135 @@ function Dashboard() {
           />
         </div>
 
-        <div style={gridStyle}>
-          {filteredSermons.map((sermon) => (
-            <div
-              key={sermon.id}
-              style={cardStyle}
-              onClick={() => navigate(`/editor/${sermon.id}`)}
-            >
-              <BookOpen color="#f59e0b" size={32} />
-              <h3>{sermon.title}</h3>
-              <p style={mutedText}>{sermon.category}</p>
-              <p style={{ color: "#cbd5e1" }}>{sermon.scripture}</p>
-              <div style={{ display: "flex", gap: "10px", marginTop: "15px" }}>
-  <button
-    style={smallButton}
-    onClick={(e) => {
-      e.stopPropagation();
-      navigate(`/editor/${sermon.id}`);
-    }}
-  >
-    Edit
-  </button>
+        {activeTab === "categories" ? (
+          Object.keys(groupedByCategory).length > 0 ? (
+            Object.keys(groupedByCategory).map((category) => (
+              <div key={category} style={{ marginBottom: "35px" }}>
+                <h2 style={{ color: "#f59e0b" }}>{category}</h2>
 
-  <button
-    style={preachButton}
-    onClick={(e) => {
-      e.stopPropagation();
-      navigate(`/preach/${sermon.id}`);
-    }}
-  >
-    Preach
-  </button>
-</div>
-            </div>
-          ))}
-        </div>
+                <div style={gridStyle}>
+                  {groupedByCategory[category].map((sermon) => (
+                    <SermonCard
+                      key={sermon.id}
+                      sermon={sermon}
+                      activeTab={activeTab}
+                      navigate={navigate}
+                      toggleFavorite={toggleFavorite}
+                      moveToTrash={moveToTrash}
+                      restoreSermon={restoreSermon}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))
+          ) : (
+            <p style={emptyText}>No sermons found.</p>
+          )
+        ) : (
+          <div style={gridStyle}>
+            {filteredSermons.length > 0 ? (
+              filteredSermons.map((sermon) => (
+                <SermonCard
+                  key={sermon.id}
+                  sermon={sermon}
+                  activeTab={activeTab}
+                  navigate={navigate}
+                  toggleFavorite={toggleFavorite}
+                  moveToTrash={moveToTrash}
+                  restoreSermon={restoreSermon}
+                />
+              ))
+            ) : (
+              <p style={emptyText}>No sermons found.</p>
+            )}
+          </div>
+        )}
       </main>
+    </div>
+  );
+}
+
+function SermonCard({
+  sermon,
+  activeTab,
+  navigate,
+  toggleFavorite,
+  moveToTrash,
+  restoreSermon,
+}) {
+  return (
+    <div
+      style={cardStyle}
+      onClick={() => {
+        if (activeTab !== "trash") {
+          navigate(`/editor/${sermon.id}`);
+        }
+      }}
+    >
+      <BookOpen color="#f59e0b" size={32} />
+
+      <h3>{sermon.title}</h3>
+
+      <p style={mutedText}>{sermon.category}</p>
+
+      <p style={{ color: "#cbd5e1" }}>{sermon.scripture}</p>
+
+      {activeTab !== "trash" ? (
+        <div style={buttonRow}>
+          <button
+            style={smallButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/editor/${sermon.id}`);
+            }}
+          >
+            Edit
+          </button>
+
+          <button
+            style={preachButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/preach/${sermon.id}`);
+            }}
+          >
+            Preach
+          </button>
+
+          <button
+            style={favoriteButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleFavorite(sermon);
+            }}
+          >
+            <Star size={16} fill={sermon.is_favorite ? "#f59e0b" : "none"} />
+          </button>
+
+          <button
+            style={trashButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              moveToTrash(sermon);
+            }}
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      ) : (
+        <div style={buttonRow}>
+          <button
+            style={restoreButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              restoreSermon(sermon);
+            }}
+          >
+            <RotateCcw size={16} />
+            Restore
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -138,7 +329,16 @@ const sidebarStyle = {
 
 const mainStyle = { flex: 1, padding: "40px" };
 const mutedText = { color: "#94a3b8" };
-const navItem = { padding: "12px 0", color: "#cbd5e1", cursor: "pointer" };
+
+const getNavStyle = (active) => ({
+  padding: "12px",
+  color: active ? "#000" : "#cbd5e1",
+  background: active ? "#f59e0b" : "transparent",
+  borderRadius: "10px",
+  cursor: "pointer",
+  fontWeight: active ? "bold" : "normal",
+});
+
 const headingStyle = { margin: 0, fontSize: "48px", lineHeight: "1.1" };
 const subtitleStyle = { color: "#94a3b8", marginTop: "10px" };
 
@@ -194,6 +394,14 @@ const cardStyle = {
   border: "1px solid #1e293b",
   cursor: "pointer",
 };
+
+const buttonRow = {
+  display: "flex",
+  gap: "10px",
+  marginTop: "15px",
+  flexWrap: "wrap",
+};
+
 const smallButton = {
   background: "#1e293b",
   color: "white",
@@ -212,4 +420,44 @@ const preachButton = {
   cursor: "pointer",
   fontWeight: "bold",
 };
+
+const favoriteButton = {
+  background: "#1e293b",
+  color: "#f59e0b",
+  border: "1px solid #334155",
+  padding: "8px 12px",
+  borderRadius: "8px",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+};
+
+const trashButton = {
+  background: "#dc2626",
+  color: "white",
+  border: "none",
+  padding: "8px 12px",
+  borderRadius: "8px",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+};
+
+const restoreButton = {
+  background: "#16a34a",
+  color: "white",
+  border: "none",
+  padding: "8px 12px",
+  borderRadius: "8px",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  gap: "6px",
+};
+
+const emptyText = {
+  color: "#94a3b8",
+  fontSize: "18px",
+};
+
 export default Dashboard;

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Save, Download, Trash2, Bold, Italic, Underline as UnderlineIcon,
   List, Heading1, AlignLeft, AlignCenter, AlignRight, AlignJustify,
-  Highlighter, Palette, ImagePlus, BookOpen, Search
+  Highlighter, Palette, ImagePlus, BookOpen, SearchA, rrowLeft
 } from "lucide-react";
 
 import jsPDF from "jspdf";
@@ -398,12 +398,27 @@ function Editor() {
 
   return (
     <div style={pageStyle}>
-      <div style={topBarStyle}>
-        <div>
-          <h1 style={headingStyle}>{id ? "Edit Sermon" : "Sermon Editor"}</h1>
-          <p style={subtitleStyle}>Prepare and organize your ministry messages.</p>
-          <p style={saveStatusStyle}>{saveStatus}</p>
-        </div>
+      <div style={topBarStyle}><div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+  <button
+    style={dashboardButton}
+    onClick={() => navigate("/dashboard")}
+  >
+    <ArrowLeft size={18} />
+    Dashboard
+  </button>
+
+  <div>
+    <h1 style={headingStyle}>
+      {id ? "Edit Sermon" : "Sermon Editor"}
+    </h1>
+
+    <p style={subtitleStyle}>
+      Prepare and organize your ministry messages.
+    </p>
+
+    <p style={saveStatusStyle}>{saveStatus}</p>
+  </div>
+</div>
 
         <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
           <button style={secondaryButton} onClick={exportPDF}>
@@ -852,5 +867,16 @@ const deleteButton = {
   alignItems: "center",
   gap: "8px",
 };
-
+const dashboardButton = {
+  background: "#1e293b",
+  color: "white",
+  border: "1px solid #334155",
+  padding: "12px 16px",
+  borderRadius: "10px",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  fontWeight: "bold",
+};
 export default Editor;
