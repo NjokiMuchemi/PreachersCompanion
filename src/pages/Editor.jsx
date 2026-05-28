@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import mammoth from "mammoth";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+
 import {
   Save,
   Download,
@@ -39,13 +40,16 @@ import Color from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
 import FontFamily from "@tiptap/extension-font-family";
 import Image from "@tiptap/extension-image";
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+
 function Editor() {
   const { id } = useParams();
   const navigate = useNavigate();
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
+  const [existingCategories, setExistingCategories] = useState([]);
   const [scripture, setScripture] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
 
@@ -70,6 +74,10 @@ function Editor() {
   });
 
   useEffect(() => {
+    fetchExistingCategories();
+  }, []);
+
+  useEffect(() => {
     if (id && editor) fetchSermon();
   }, [id, editor]);
 
@@ -82,6 +90,28 @@ function Editor() {
 
     return () => clearTimeout(timer);
   }, [title, category, scripture, editor?.getHTML()]);
+
+  async function fetchExistingCategories() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("sermons")
+      .select("category")
+      .eq("user_id", user.id)
+      .neq("category", "");
+
+    if (error) return;
+
+    const uniqueCategories = [
+      ...new Set((data || []).map((item) => item.category).filter(Boolean)),
+    ];
+
+    setExistingCategories(uniqueCategories);
+  }
 
   async function fetchSermon() {
     const { data, error } = await supabase
@@ -175,103 +205,107 @@ function Editor() {
 
     setSaveStatus("Unsaved changes");
   }
+
   async function handlePdfImport(event) {
-  const file = event.target.files[0];
+    const file = event.target.files[0];
 
-  if (!file) return;
+    if (!file) return;
 
-  if (!file.name.endsWith(".pdf")) {
-    alert("Please upload a PDF document.");
-    return;
+    if (!file.name.endsWith(".pdf")) {
+      alert("Please upload a PDF document.");
+      return;
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+    let fullText = "";
+
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+      const page = await pdf.getPage(pageNumber);
+      const textContent = await page.getTextContent();
+
+      const pageText = textContent.items.map((item) => item.str).join(" ");
+
+      fullText += `<p>${pageText}</p>`;
+    }
+
+    editor.chain().focus().insertContent(fullText).run();
+
+    if (!title.trim()) {
+      setTitle(file.name.replace(".pdf", ""));
+    }
+
+    setSaveStatus("Unsaved changes");
   }
 
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  async function handleWordImport(event) {
+    const file = event.target.files[0];
 
-  let fullText = "";
+    if (!file) return;
 
-  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-    const page = await pdf.getPage(pageNumber);
-    const textContent = await page.getTextContent();
+    if (!file.name.endsWith(".docx")) {
+      alert("Please upload a Word document ending with .docx");
+      return;
+    }
 
-    const pageText = textContent.items.map((item) => item.str).join(" ");
+    const arrayBuffer = await file.arrayBuffer();
 
-    fullText += `<p>${pageText}</p>`;
+    const result = await mammoth.convertToHtml({
+      arrayBuffer,
+    });
+
+    const html = result.value;
+
+    editor.chain().focus().insertContent(html).run();
+
+    if (!title.trim()) {
+      const cleanFileName = file.name.replace(".docx", "");
+      setTitle(cleanFileName);
+    }
+
+    setSaveStatus("Unsaved changes");
   }
 
-  editor.chain().focus().insertContent(fullText).run();
+  async function handleImageUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
 
-  if (!title.trim()) {
-    setTitle(file.name.replace(".pdf", ""));
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      alert("You must be logged in to upload images.");
+      return;
+    }
+
+    const fileName = `${user.id}/${Date.now()}-${file.name}`;
+
+    const { error } = await supabase.storage
+      .from("sermon-images")
+      .upload(fileName, file);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("sermon-images")
+      .getPublicUrl(fileName);
+
+    const imageUrl = publicUrlData.publicUrl;
+
+    editor
+      .chain()
+      .focus()
+      .insertContent(`<img src="${imageUrl}" alt="sermon image" />`)
+      .run();
+
+    setSaveStatus("Unsaved changes");
   }
 
-  setSaveStatus("Unsaved changes");
-}
-async function handleWordImport(event) {
-  const file = event.target.files[0];
-
-  if (!file) return;
-
-  if (!file.name.endsWith(".docx")) {
-    alert("Please upload a Word document ending with .docx");
-    return;
-  }
-
-  const arrayBuffer = await file.arrayBuffer();
-
-  const result = await mammoth.convertToHtml({
-    arrayBuffer,
-  });
-
-  const html = result.value;
-
-  editor.chain().focus().insertContent(html).run();
-
-  if (!title.trim()) {
-    const cleanFileName = file.name.replace(".docx", "");
-    setTitle(cleanFileName);
-  }
-
-  setSaveStatus("Unsaved changes");
-}
- async function handleImageUpload(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    alert("You must be logged in to upload images.");
-    return;
-  }
-
-  const fileName = `${user.id}/${Date.now()}-${file.name}`;
-
-  const { error } = await supabase.storage
-    .from("sermon-images")
-    .upload(fileName, file);
-
-  if (error) {
-    alert(error.message);
-    return;
-  }
-
-  const { data: publicUrlData } = supabase.storage
-    .from("sermon-images")
-    .getPublicUrl(fileName);
-
-  const imageUrl = publicUrlData.publicUrl;
-
-  editor
-    .chain()
-    .focus()
-    .insertContent(`<img src="${imageUrl}" alt="sermon image" />`)
-    .run();
-
-  setSaveStatus("Unsaved changes");
-}
   async function handleSave() {
     const content = editor?.getHTML() || "";
 
@@ -474,27 +508,23 @@ async function handleWordImport(event) {
 
   return (
     <div style={pageStyle}>
-      <div style={topBarStyle}><div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-  <button
-    style={dashboardButton}
-    onClick={() => navigate("/dashboard")}
-  >
-    <ArrowLeft size={18} />
-    Dashboard
-  </button>
+      <div style={topBarStyle}>
+        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          <button style={dashboardButton} onClick={() => navigate("/dashboard")}>
+            <ArrowLeft size={18} />
+            Dashboard
+          </button>
 
-  <div>
-    <h1 style={headingStyle}>
-      {id ? "Edit Sermon" : "Sermon Editor"}
-    </h1>
+          <div>
+            <h1 style={headingStyle}>{id ? "Edit Sermon" : "Sermon Editor"}</h1>
 
-    <p style={subtitleStyle}>
-      Prepare and organize your ministry messages.
-    </p>
+            <p style={subtitleStyle}>
+              Prepare and organize your ministry messages.
+            </p>
 
-    <p style={saveStatusStyle}>{saveStatus}</p>
-  </div>
-</div>
+            <p style={saveStatusStyle}>{saveStatus}</p>
+          </div>
+        </div>
 
         <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
           <button style={secondaryButton} onClick={exportPDF}>
@@ -530,9 +560,25 @@ async function handleWordImport(event) {
           style={titleInput}
         />
 
+        <select
+          value={category}
+          onChange={(e) => {
+            setCategory(e.target.value);
+            setSaveStatus("Unsaved changes");
+          }}
+          style={inputStyle}
+        >
+          <option value="">Select existing category or type new below</option>
+          {existingCategories.map((cat) => (
+            <option key={cat} value={cat}>
+              {cat}
+            </option>
+          ))}
+        </select>
+
         <input
           type="text"
-          placeholder="Category"
+          placeholder="Or type a new category"
           value={category}
           onChange={(e) => {
             setCategory(e.target.value);
@@ -641,72 +687,70 @@ async function handleWordImport(event) {
             />
           </label>
 
-<button
-  style={toolButton}
-  onClick={() => editor.chain().focus().unsetColor().run()}
->
-  Clear Color
-</button>
+          <button style={toolButton} onClick={() => editor.chain().focus().unsetColor().run()}>
+            Clear Color
+          </button>
 
-<label style={colorLabel}>
-  <Highlighter size={18} />
-  Highlight
-  <input
-    type="color"
-    defaultValue="#fef08a"
-    onChange={(e) =>
-      editor
-        .chain()
-        .focus()
-        .toggleHighlight({ color: e.target.value })
-        .run()
-    }
-    style={colorInput}
-  />
-</label>
+          <label style={colorLabel}>
+            <Highlighter size={18} />
+            Highlight
+            <input
+              type="color"
+              defaultValue="#fef08a"
+              onChange={(e) =>
+                editor
+                  .chain()
+                  .focus()
+                  .toggleHighlight({ color: e.target.value })
+                  .run()
+              }
+              style={colorInput}
+            />
+          </label>
 
-<button
-  style={toolButton}
-  onClick={() => editor.chain().focus().unsetHighlight().run()}
->
-  Clear Highlight
-</button>
+          <button style={toolButton} onClick={() => editor.chain().focus().unsetHighlight().run()}>
+            Clear Highlight
+          </button>
 
-<label style={imageUploadLabel}>
-  <ImagePlus size={18} />
-  Upload Image
-  <input
-    type="file"
-    accept="image/*"
-    onChange={handleImageUpload}
-    style={{ display: "none" }}
-  />
-</label>
+          <label style={imageUploadLabel}>
+            <ImagePlus size={18} />
+            Upload Image
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              style={{ display: "none" }}
+            />
+          </label>
 
-<label style={importWordLabel}>
-  Import Word
-  <input
-    type="file"
-    accept=".docx"
-    onChange={handleWordImport}
-    style={{ display: "none" }}
-  />
-</label>
-<label style={importPdfLabel}>
-  Import PDF
-  <input
-    type="file"
-    accept=".pdf"
-    onChange={handlePdfImport}
-    style={{ display: "none" }}
-  />
-</label>
+          <label style={importWordLabel}>
+            Import Word
+            <input
+              type="file"
+              accept=".docx"
+              onChange={handleWordImport}
+              style={{ display: "none" }}
+            />
+          </label>
+
+          <label style={importPdfLabel}>
+            Import PDF
+            <input
+              type="file"
+              accept=".pdf"
+              onChange={handlePdfImport}
+              style={{ display: "none" }}
+            />
+          </label>
+
           <select
             style={selectStyle}
             onChange={(e) => editor.chain().focus().setFontFamily(e.target.value).run()}
             defaultValue=""
           >
-            <option value="" disabled>Font</option>
+            <option value="" disabled>
+              Font
+            </option>
             <option value="Arial">Arial</option>
             <option value="Georgia">Georgia</option>
             <option value="Times New Roman">Times New Roman</option>
@@ -891,6 +935,7 @@ const imageUploadLabel = {
   alignItems: "center",
   gap: "6px",
 };
+
 const importWordLabel = {
   background: "#7c3aed",
   color: "white",
@@ -904,6 +949,7 @@ const importWordLabel = {
   alignItems: "center",
   gap: "6px",
 };
+
 const importPdfLabel = {
   background: "#be123c",
   color: "white",
@@ -917,6 +963,7 @@ const importPdfLabel = {
   alignItems: "center",
   gap: "6px",
 };
+
 const colorInput = {
   width: "28px",
   height: "28px",
@@ -996,6 +1043,7 @@ const deleteButton = {
   alignItems: "center",
   gap: "8px",
 };
+
 const dashboardButton = {
   background: "#1e293b",
   color: "white",
@@ -1008,4 +1056,5 @@ const dashboardButton = {
   gap: "8px",
   fontWeight: "bold",
 };
+
 export default Editor;

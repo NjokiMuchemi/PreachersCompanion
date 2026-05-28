@@ -1,14 +1,17 @@
 import { useEffect, useState } from "react";
 import {
   Plus,
-  Search,
+ Search,
   BookOpen,
   Star,
   Trash2,
   RotateCcw,
   Settings,
   LogOut,
+  LayoutGrid,
+  List,
 } from "lucide-react";
+
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
@@ -16,6 +19,8 @@ function Dashboard() {
   const [sermons, setSermons] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const [viewMode, setViewMode] = useState("grid");
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -36,7 +41,7 @@ function Dashboard() {
       .from("sermons")
       .select("*")
       .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+      .order("updated_at", { ascending: false });
 
     if (error) {
       alert(error.message);
@@ -52,46 +57,40 @@ function Dashboard() {
   }
 
   async function toggleFavorite(sermon) {
-    const { error } = await supabase
+    await supabase
       .from("sermons")
-      .update({ is_favorite: !sermon.is_favorite })
+      .update({
+        is_favorite: !sermon.is_favorite,
+      })
       .eq("id", sermon.id);
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
 
     fetchSermons();
   }
 
   async function moveToTrash(sermon) {
-    const confirmTrash = window.confirm("Move this sermon to Trash?");
+    const confirmTrash = window.confirm(
+      "Move this sermon to Trash?"
+    );
+
     if (!confirmTrash) return;
 
-    const { error } = await supabase
+    await supabase
       .from("sermons")
-      .update({ is_deleted: true })
+      .update({
+        is_deleted: true,
+      })
       .eq("id", sermon.id);
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
 
     fetchSermons();
   }
 
   async function restoreSermon(sermon) {
-    const { error } = await supabase
+    await supabase
       .from("sermons")
-      .update({ is_deleted: false })
+      .update({
+        is_deleted: false,
+      })
       .eq("id", sermon.id);
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
 
     fetchSermons();
   }
@@ -103,7 +102,9 @@ function Dashboard() {
   }
 
   if (activeTab === "favorites") {
-    displayedSermons = sermons.filter((s) => s.is_favorite && !s.is_deleted);
+    displayedSermons = sermons.filter(
+      (s) => s.is_favorite && !s.is_deleted
+    );
   }
 
   if (activeTab === "trash") {
@@ -120,8 +121,7 @@ function Dashboard() {
     return (
       sermon.title?.toLowerCase().includes(search) ||
       sermon.category?.toLowerCase().includes(search) ||
-      sermon.scripture?.toLowerCase().includes(search) ||
-      sermon.content?.toLowerCase().includes(search)
+      sermon.scripture?.toLowerCase().includes(search)
     );
   });
 
@@ -133,6 +133,7 @@ function Dashboard() {
     }
 
     groups[category].push(sermon);
+
     return groups;
   }, {});
 
@@ -140,6 +141,7 @@ function Dashboard() {
     <div style={pageStyle}>
       <aside style={sidebarStyle}>
         <h2>Preacher&apos;s Companion</h2>
+
         <p style={mutedText}>Sermon Workspace</p>
 
         <nav style={{ marginTop: "40px" }}>
@@ -171,7 +173,10 @@ function Dashboard() {
             Trash
           </p>
 
-          <p style={getNavStyle(false)} onClick={() => navigate("/settings")}>
+          <p
+            style={getNavStyle(false)}
+            onClick={() => navigate("/settings")}
+          >
             <Settings size={16} />
             Settings
           </p>
@@ -193,19 +198,48 @@ function Dashboard() {
               {activeTab === "trash" && "Trash"}
             </h1>
 
-            <p style={subtitleStyle}>Organize and access your ministry notes.</p>
+            <p style={subtitleStyle}>
+              Organize and access your ministry notes.
+            </p>
           </div>
 
-          <Link to="/editor" style={newButtonStyle}>
-            <Plus size={18} />
-            New Sermon
-          </Link>
+          <div style={topActions}>
+            <div style={viewToggle}>
+              <button
+                style={
+                  viewMode === "grid"
+                    ? activeViewButton
+                    : viewButton
+                }
+                onClick={() => setViewMode("grid")}
+              >
+                <LayoutGrid size={18} />
+              </button>
+
+              <button
+                style={
+                  viewMode === "list"
+                    ? activeViewButton
+                    : viewButton
+                }
+                onClick={() => setViewMode("list")}
+              >
+                <List size={18} />
+              </button>
+            </div>
+
+            <Link to="/editor" style={newButtonStyle}>
+              <Plus size={18} />
+              New Sermon
+            </Link>
+          </div>
         </div>
 
         <div style={searchBoxStyle}>
           <Search size={20} />
+
           <input
-            placeholder="Search sermons, scriptures, categories or content..."
+            placeholder="Search sermons, scriptures or categories..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={searchInputStyle}
@@ -216,13 +250,22 @@ function Dashboard() {
           Object.keys(groupedByCategory).length > 0 ? (
             Object.keys(groupedByCategory).map((category) => (
               <div key={category} style={{ marginBottom: "35px" }}>
-                <h2 style={{ color: "#f59e0b" }}>{category}</h2>
+                <h2 style={{ color: "#f59e0b" }}>
+                  {category}
+                </h2>
 
-                <div style={gridStyle}>
+                <div
+                  style={
+                    viewMode === "grid"
+                      ? gridStyle
+                      : listStyle
+                  }
+                >
                   {groupedByCategory[category].map((sermon) => (
                     <SermonCard
                       key={sermon.id}
                       sermon={sermon}
+                      viewMode={viewMode}
                       activeTab={activeTab}
                       navigate={navigate}
                       toggleFavorite={toggleFavorite}
@@ -237,12 +280,19 @@ function Dashboard() {
             <p style={emptyText}>No sermons found.</p>
           )
         ) : (
-          <div style={gridStyle}>
+          <div
+            style={
+              viewMode === "grid"
+                ? gridStyle
+                : listStyle
+            }
+          >
             {filteredSermons.length > 0 ? (
               filteredSermons.map((sermon) => (
                 <SermonCard
                   key={sermon.id}
                   sermon={sermon}
+                  viewMode={viewMode}
                   activeTab={activeTab}
                   navigate={navigate}
                   toggleFavorite={toggleFavorite}
@@ -262,6 +312,7 @@ function Dashboard() {
 
 function SermonCard({
   sermon,
+  viewMode,
   activeTab,
   navigate,
   toggleFavorite,
@@ -270,20 +321,30 @@ function SermonCard({
 }) {
   return (
     <div
-      style={cardStyle}
+      style={
+        viewMode === "grid"
+          ? cardStyle
+          : listCardStyle
+      }
       onClick={() => {
         if (activeTab !== "trash") {
           navigate(`/editor/${sermon.id}`);
         }
       }}
     >
-      <BookOpen color="#f59e0b" size={32} />
+      <div style={{ flex: 1 }}>
+        <BookOpen color="#f59e0b" size={28} />
 
-      <h3>{sermon.title}</h3>
+        <h3>{sermon.title}</h3>
 
-      <p style={mutedText}>{sermon.category}</p>
+        <p style={mutedText}>
+          {sermon.category || "Uncategorized"}
+        </p>
 
-      <p style={{ color: "#cbd5e1" }}>{sermon.scripture}</p>
+        <p style={{ color: "#cbd5e1" }}>
+          {sermon.scripture}
+        </p>
+      </div>
 
       {activeTab !== "trash" ? (
         <div style={buttonRow}>
@@ -314,7 +375,14 @@ function SermonCard({
               toggleFavorite(sermon);
             }}
           >
-            <Star size={16} fill={sermon.is_favorite ? "#f59e0b" : "none"} />
+            <Star
+              size={16}
+              fill={
+                sermon.is_favorite
+                  ? "#f59e0b"
+                  : "none"
+              }
+            />
           </button>
 
           <button
@@ -328,18 +396,16 @@ function SermonCard({
           </button>
         </div>
       ) : (
-        <div style={buttonRow}>
-          <button
-            style={restoreButton}
-            onClick={(e) => {
-              e.stopPropagation();
-              restoreSermon(sermon);
-            }}
-          >
-            <RotateCcw size={16} />
-            Restore
-          </button>
-        </div>
+        <button
+          style={restoreButton}
+          onClick={(e) => {
+            e.stopPropagation();
+            restoreSermon(sermon);
+          }}
+        >
+          <RotateCcw size={16} />
+          Restore
+        </button>
       )}
     </div>
   );
@@ -360,8 +426,14 @@ const sidebarStyle = {
   borderRight: "1px solid #1e293b",
 };
 
-const mainStyle = { flex: 1, padding: "40px" };
-const mutedText = { color: "#94a3b8" };
+const mainStyle = {
+  flex: 1,
+  padding: "40px",
+};
+
+const mutedText = {
+  color: "#94a3b8",
+};
 
 const getNavStyle = (active) => ({
   padding: "12px",
@@ -388,14 +460,50 @@ const logoutNavStyle = {
   marginTop: "20px",
 };
 
-const headingStyle = { margin: 0, fontSize: "48px", lineHeight: "1.1" };
-const subtitleStyle = { color: "#94a3b8", marginTop: "10px" };
+const headingStyle = {
+  margin: 0,
+  fontSize: "48px",
+  lineHeight: "1.1",
+};
+
+const subtitleStyle = {
+  color: "#94a3b8",
+  marginTop: "10px",
+};
 
 const topBarStyle = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
   marginBottom: "30px",
+  flexWrap: "wrap",
+  gap: "20px",
+};
+
+const topActions = {
+  display: "flex",
+  alignItems: "center",
+  gap: "14px",
+};
+
+const viewToggle = {
+  display: "flex",
+  gap: "6px",
+};
+
+const viewButton = {
+  background: "#1e293b",
+  border: "1px solid #334155",
+  color: "white",
+  padding: "10px",
+  borderRadius: "8px",
+  cursor: "pointer",
+};
+
+const activeViewButton = {
+  ...viewButton,
+  background: "#f59e0b",
+  color: "#000",
 };
 
 const newButtonStyle = {
@@ -432,8 +540,15 @@ const searchInputStyle = {
 
 const gridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+  gridTemplateColumns:
+    "repeat(auto-fit, minmax(260px, 1fr))",
   gap: "20px",
+};
+
+const listStyle = {
+  display: "flex",
+  flexDirection: "column",
+  gap: "16px",
 };
 
 const cardStyle = {
@@ -442,6 +557,18 @@ const cardStyle = {
   borderRadius: "16px",
   border: "1px solid #1e293b",
   cursor: "pointer",
+};
+
+const listCardStyle = {
+  background: "#0f172a",
+  padding: "20px",
+  borderRadius: "16px",
+  border: "1px solid #1e293b",
+  cursor: "pointer",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "20px",
 };
 
 const buttonRow = {
@@ -496,7 +623,7 @@ const restoreButton = {
   background: "#16a34a",
   color: "white",
   border: "none",
-  padding: "8px 12px",
+  padding: "10px 14px",
   borderRadius: "8px",
   cursor: "pointer",
   display: "flex",
