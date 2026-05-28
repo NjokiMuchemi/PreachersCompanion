@@ -1,5 +1,14 @@
 import { useEffect, useState } from "react";
-import { Plus, Search, BookOpen, Star, Trash2, RotateCcw, Settings, LogOut } from "lucide-react";
+import {
+  Plus,
+  Search,
+  BookOpen,
+  Star,
+  Trash2,
+  RotateCcw,
+  Settings,
+  LogOut,
+} from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
@@ -18,7 +27,10 @@ function Dashboard() {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) return;
+    if (!user) {
+      navigate("/");
+      return;
+    }
 
     const { data, error } = await supabase
       .from("sermons")
@@ -32,6 +44,11 @@ function Dashboard() {
     }
 
     setSermons(data || []);
+  }
+
+  async function logout() {
+    await supabase.auth.signOut();
+    navigate("/");
   }
 
   async function toggleFavorite(sermon) {
@@ -126,7 +143,10 @@ function Dashboard() {
         <p style={mutedText}>Sermon Workspace</p>
 
         <nav style={{ marginTop: "40px" }}>
-          <p style={getNavStyle(activeTab === "all")} onClick={() => setActiveTab("all")}>
+          <p
+            style={getNavStyle(activeTab === "all")}
+            onClick={() => setActiveTab("all")}
+          >
             All Sermons
           </p>
 
@@ -144,15 +164,22 @@ function Dashboard() {
             Favorites
           </p>
 
-          <p style={getNavStyle(activeTab === "trash")} onClick={() => setActiveTab("trash")}>
+          <p
+            style={getNavStyle(activeTab === "trash")}
+            onClick={() => setActiveTab("trash")}
+          >
             Trash
           </p>
-        <p
-  style={getNavStyle(false)}
-  onClick={() => navigate("/settings")}
->
-  Settings
-</p>
+
+          <p style={getNavStyle(false)} onClick={() => navigate("/settings")}>
+            <Settings size={16} />
+            Settings
+          </p>
+
+          <p style={logoutNavStyle} onClick={logout}>
+            <LogOut size={16} />
+            Logout
+          </p>
         </nav>
       </aside>
 
@@ -343,7 +370,23 @@ const getNavStyle = (active) => ({
   borderRadius: "10px",
   cursor: "pointer",
   fontWeight: active ? "bold" : "normal",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
 });
+
+const logoutNavStyle = {
+  padding: "12px",
+  color: "#fecaca",
+  background: "transparent",
+  borderRadius: "10px",
+  cursor: "pointer",
+  fontWeight: "bold",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  marginTop: "20px",
+};
 
 const headingStyle = { margin: 0, fontSize: "48px", lineHeight: "1.1" };
 const subtitleStyle = { color: "#94a3b8", marginTop: "10px" };
