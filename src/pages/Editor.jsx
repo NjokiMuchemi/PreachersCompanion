@@ -51,12 +51,13 @@ function Editor() {
   const [category, setCategory] = useState("");
   const [existingCategories, setExistingCategories] = useState([]);
   const [scripture, setScripture] = useState("");
+  const [tagsInput, setTagsInput] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
 
- const [aiAction, setAiAction] = useState("outline");
- const [aiPrompt, setAiPrompt] = useState("");
- const [aiLoading, setAiLoading] = useState(false);
- const [aiResult, setAiResult] = useState("");
+  const [aiAction, setAiAction] = useState("outline");
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState("");
 
   const [bibleReference, setBibleReference] = useState("");
   const [bibleResult, setBibleResult] = useState("");
@@ -94,7 +95,14 @@ function Editor() {
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [title, category, scripture, editor?.getHTML()]);
+  }, [title, category, scripture, tagsInput, editor?.getHTML()]);
+
+  function getTagsArray() {
+    return tagsInput
+      .split(",")
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+  }
 
   async function fetchExistingCategories() {
     const {
@@ -133,6 +141,7 @@ function Editor() {
     setTitle(data.title || "");
     setCategory(data.category || "");
     setScripture(data.scripture || "");
+    setTagsInput((data.tags || []).join(", "));
     editor.commands.setContent(data.content || "");
     setSaveStatus("Saved");
   }
@@ -150,6 +159,7 @@ function Editor() {
         title,
         category,
         scripture,
+        tags: getTagsArray(),
         content,
         updated_at: new Date().toISOString(),
       })
@@ -196,53 +206,55 @@ function Editor() {
 
     setBibleLoading(false);
   }
-async function runAiAssistant() {
-  if (!editor) return;
 
-  setAiLoading(true);
-  setAiResult("");
+  async function runAiAssistant() {
+    if (!editor) return;
 
-  try {
-    const response = await fetch("/api/sermon-assistant", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        action: aiAction,
-        prompt: aiPrompt,
-        sermonText: editor.getText(),
-      }),
-    });
+    setAiLoading(true);
+    setAiResult("");
 
-    const data = await response.json();
+    try {
+      const response = await fetch("/api/sermon-assistant", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: aiAction,
+          prompt: aiPrompt,
+          sermonText: editor.getText(),
+        }),
+      });
 
-    if (!response.ok) {
-      alert(data.error || "AI assistant failed.");
-      setAiLoading(false);
-      return;
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "AI assistant failed.");
+        setAiLoading(false);
+        return;
+      }
+
+      setAiResult(data.result || "");
+    } catch {
+      alert("Could not reach AI assistant.");
     }
 
-    setAiResult(data.result || "");
-  } catch (error) {
-    alert("Could not reach AI assistant.");
+    setAiLoading(false);
   }
 
-  setAiLoading(false);
-}
+  function insertAiResult() {
+    if (!aiResult || !editor) return;
 
-function insertAiResult() {
-  if (!aiResult || !editor) return;
+    const formatted = aiResult
+      .split("\n")
+      .map((line) => `<p>${line || "&nbsp;"}</p>`)
+      .join("");
 
-  const formatted = aiResult
-    .split("\n")
-    .map((line) => `<p>${line || "&nbsp;"}</p>`)
-    .join("");
+    editor.chain().focus().insertContent(formatted).run();
 
-  editor.chain().focus().insertContent(formatted).run();
+    setSaveStatus("Unsaved changes");
+  }
 
-  setSaveStatus("Unsaved changes");
-}
   function insertBibleVerse() {
     if (!bibleResult || !editor) return;
 
@@ -381,6 +393,7 @@ function insertAiResult() {
           title,
           category,
           scripture,
+          tags: getTagsArray(),
           content,
           updated_at: new Date().toISOString(),
         })
@@ -404,6 +417,7 @@ function insertAiResult() {
         title,
         category,
         scripture,
+        tags: getTagsArray(),
         content,
       },
     ]);
@@ -648,7 +662,19 @@ function insertAiResult() {
           }}
           style={inputStyle}
         />
+
+        <input
+          type="text"
+          placeholder="Tags e.g. faith, prayer, leadership, youth"
+          value={tagsInput}
+          onChange={(e) => {
+            setTagsInput(e.target.value);
+            setSaveStatus("Unsaved changes");
+          }}
+          style={inputStyle}
+        />
       </div>
+
       {false && (
         <div style={aiCard}>
           <div style={aiHeader}>
@@ -692,6 +718,7 @@ function insertAiResult() {
           )}
         </div>
       )}
+
       <div style={bibleCard}>
         <div style={bibleHeader}>
           <BookOpen size={20} />
@@ -889,6 +916,7 @@ const cardStyle = {
   border: "1px solid #1e293b",
   marginBottom: "25px",
 };
+
 const aiCard = {
   background: "#0f172a",
   border: "1px solid #1e293b",
@@ -969,6 +997,7 @@ const insertAiButton = {
   fontWeight: "bold",
   marginTop: "12px",
 };
+
 const bibleCard = {
   background: "#0f172a",
   border: "1px solid #1e293b",
