@@ -848,7 +848,19 @@ const imageUploadLabel = {
   alignItems: "center",
   gap: "6px",
 };
-
+const importWordLabel = {
+  background: "#7c3aed",
+  color: "white",
+  padding: "10px 14px",
+  borderRadius: "8px",
+  cursor: "pointer",
+  fontSize: "14px",
+  fontWeight: "bold",
+  border: "1px solid #6d28d9",
+  display: "flex",
+  alignItems: "center",
+  gap: "6px",
+};
 const colorInput = {
   width: "28px",
   height: "28px",
