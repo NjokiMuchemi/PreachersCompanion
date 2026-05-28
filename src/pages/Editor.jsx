@@ -649,47 +649,49 @@ function insertAiResult() {
           style={inputStyle}
         />
       </div>
-<div style={aiCard}>
-  <div style={aiHeader}>
-    <strong>AI Sermon Assistant</strong>
-  </div>
+      {false && (
+        <div style={aiCard}>
+          <div style={aiHeader}>
+            <strong>AI Sermon Assistant</strong>
+          </div>
 
-  <div style={aiRow}>
-    <select
-      value={aiAction}
-      onChange={(e) => setAiAction(e.target.value)}
-      style={aiSelect}
-    >
-      <option value="outline">Generate Sermon Outline</option>
-      <option value="expand">Expand Sermon Point</option>
-      <option value="prayer">Create Prayer Points</option>
-      <option value="altar">Create Altar Call</option>
-      <option value="summary">Summarize Sermon</option>
-      <option value="cleanup">Clean Up Notes</option>
-    </select>
+          <div style={aiRow}>
+            <select
+              value={aiAction}
+              onChange={(e) => setAiAction(e.target.value)}
+              style={aiSelect}
+            >
+              <option value="outline">Generate Sermon Outline</option>
+              <option value="expand">Expand Sermon Point</option>
+              <option value="prayer">Create Prayer Points</option>
+              <option value="altar">Create Altar Call</option>
+              <option value="summary">Summarize Sermon</option>
+              <option value="cleanup">Clean Up Notes</option>
+            </select>
 
-    <button style={aiButton} onClick={runAiAssistant}>
-      {aiLoading ? "Working..." : "Generate"}
-    </button>
-  </div>
+            <button style={aiButton} onClick={runAiAssistant}>
+              {aiLoading ? "Working..." : "Generate"}
+            </button>
+          </div>
 
-  <textarea
-    placeholder="Optional instruction e.g. make it suitable for youth, Sunday service, leadership class..."
-    value={aiPrompt}
-    onChange={(e) => setAiPrompt(e.target.value)}
-    style={aiPromptBox}
-  />
+          <textarea
+            placeholder="Optional instruction e.g. make it suitable for youth, Sunday service, leadership class..."
+            value={aiPrompt}
+            onChange={(e) => setAiPrompt(e.target.value)}
+            style={aiPromptBox}
+          />
 
-  {aiResult && (
-    <div style={aiResultBox}>
-      <pre style={aiResultText}>{aiResult}</pre>
+          {aiResult && (
+            <div style={aiResultBox}>
+              <pre style={aiResultText}>{aiResult}</pre>
 
-      <button style={insertAiButton} onClick={insertAiResult}>
-        Insert Into Sermon
-      </button>
-    </div>
-  )}
-</div>
+              <button style={insertAiButton} onClick={insertAiResult}>
+                Insert Into Sermon
+              </button>
+            </div>
+          )}
+        </div>
+      )}
       <div style={bibleCard}>
         <div style={bibleHeader}>
           <BookOpen size={20} />
