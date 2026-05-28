@@ -1,77 +1,35 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
+import { Link } from "react-router-dom";
 
 function Signup() {
-  const navigate = useNavigate();
-
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-
-  async function handleSignup() {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-      },
-    });
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    alert("Account created successfully. Please login.");
-    navigate("/");
-  }
-
   return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-        <h1 style={headingStyle}>Create Account</h1>
+        <h1 style={headingStyle}>Access by Approval Only</h1>
 
         <p style={subtitleStyle}>
-          Start storing your sermons and ministry notes online.
+          Preacher&apos;s Companion is currently available only to approved users.
+          To request access, please contact the administrator.
         </p>
 
-        <input
-          type="text"
-          placeholder="Full Name"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          style={inputStyle}
-        />
+        <div style={contactBox}>
+          <p style={contactLine}>
+            <strong>Email:</strong>{" "}
+            <a href="mailto:inmuchemi@yahoo.com" style={contactLink}>
+              inmuchemi@yahoo.com
+            </a>
+          </p>
 
-        <input
-          type="email"
-          placeholder="Email Address"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={inputStyle}
-        />
+          <p style={contactLine}>
+            <strong>Phone:</strong>{" "}
+            <a href="tel:+254710602627" style={contactLink}>
+              +254710602627
+            </a>
+          </p>
+        </div>
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={inputStyle}
-        />
-
-        <button style={buttonStyle} onClick={handleSignup}>
-          Create Account
-        </button>
-
-        <p style={bottomTextStyle}>
-          Already have an account?{" "}
-          <Link to="/" style={linkStyle}>
-            Login
-          </Link>
-        </p>
+        <Link to="/" style={buttonStyle}>
+          Back to Login
+        </Link>
       </div>
     </div>
   );
@@ -92,57 +50,55 @@ const cardStyle = {
   padding: "40px",
   borderRadius: "20px",
   width: "100%",
-  maxWidth: "420px",
+  maxWidth: "460px",
   boxShadow: "0 0 30px rgba(0,0,0,0.4)",
+  textAlign: "center",
 };
 
 const headingStyle = {
   color: "white",
-  marginBottom: "10px",
-  textAlign: "center",
-  fontSize: "42px",
-  lineHeight: "1.05",
+  marginBottom: "14px",
+  fontSize: "38px",
+  lineHeight: "1.08",
 };
 
 const subtitleStyle = {
   color: "#94a3b8",
-  textAlign: "center",
-  marginBottom: "30px",
+  marginBottom: "28px",
+  lineHeight: "1.6",
 };
 
-const inputStyle = {
-  width: "100%",
-  padding: "14px",
-  marginBottom: "20px",
-  borderRadius: "10px",
+const contactBox = {
+  background: "#020617",
   border: "1px solid #334155",
-  background: "#1e293b",
-  color: "white",
-  fontSize: "16px",
-  boxSizing: "border-box",
+  borderRadius: "14px",
+  padding: "18px",
+  marginBottom: "28px",
+  textAlign: "left",
 };
 
-const buttonStyle = {
-  width: "100%",
-  padding: "14px",
-  background: "#f59e0b",
-  border: "none",
-  borderRadius: "10px",
-  fontSize: "16px",
-  fontWeight: "bold",
-  cursor: "pointer",
+const contactLine = {
+  color: "#cbd5e1",
+  margin: "10px 0",
 };
 
-const bottomTextStyle = {
-  color: "#94a3b8",
-  textAlign: "center",
-  marginTop: "20px",
-};
-
-const linkStyle = {
+const contactLink = {
   color: "#f59e0b",
   textDecoration: "none",
   fontWeight: "bold",
+};
+
+const buttonStyle = {
+  display: "block",
+  width: "100%",
+  padding: "14px",
+  background: "#f59e0b",
+  color: "#000",
+  borderRadius: "10px",
+  fontSize: "16px",
+  fontWeight: "bold",
+  textDecoration: "none",
+  boxSizing: "border-box",
 };
 
 export default Signup;
