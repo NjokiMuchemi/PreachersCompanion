@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Plus,
- Search,
+  Search,
   BookOpen,
   Star,
   Trash2,
@@ -10,6 +10,7 @@ import {
   LogOut,
   LayoutGrid,
   List,
+  Edit3,
 } from "lucide-react";
 
 import { Link, useNavigate } from "react-router-dom";
@@ -51,6 +52,45 @@ function Dashboard() {
     setSermons(data || []);
   }
 
+  async function renameCategory(oldCategory) {
+    const newCategory = prompt(
+      `Rename category "${oldCategory}" to:`,
+      oldCategory
+    );
+
+    if (!newCategory || !newCategory.trim()) return;
+
+    const cleanCategory = newCategory.trim();
+
+    const confirmRename = window.confirm(
+      `Rename all sermons in "${oldCategory}" to "${cleanCategory}"?`
+    );
+
+    if (!confirmRename) return;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    const { error } = await supabase
+      .from("sermons")
+      .update({
+        category: cleanCategory,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", user.id)
+      .eq("category", oldCategory);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    fetchSermons();
+  }
+
   async function logout() {
     await supabase.auth.signOut();
     navigate("/");
@@ -59,26 +99,19 @@ function Dashboard() {
   async function toggleFavorite(sermon) {
     await supabase
       .from("sermons")
-      .update({
-        is_favorite: !sermon.is_favorite,
-      })
+      .update({ is_favorite: !sermon.is_favorite })
       .eq("id", sermon.id);
 
     fetchSermons();
   }
 
   async function moveToTrash(sermon) {
-    const confirmTrash = window.confirm(
-      "Move this sermon to Trash?"
-    );
-
+    const confirmTrash = window.confirm("Move this sermon to Trash?");
     if (!confirmTrash) return;
 
     await supabase
       .from("sermons")
-      .update({
-        is_deleted: true,
-      })
+      .update({ is_deleted: true })
       .eq("id", sermon.id);
 
     fetchSermons();
@@ -87,9 +120,7 @@ function Dashboard() {
   async function restoreSermon(sermon) {
     await supabase
       .from("sermons")
-      .update({
-        is_deleted: false,
-      })
+      .update({ is_deleted: false })
       .eq("id", sermon.id);
 
     fetchSermons();
@@ -102,9 +133,7 @@ function Dashboard() {
   }
 
   if (activeTab === "favorites") {
-    displayedSermons = sermons.filter(
-      (s) => s.is_favorite && !s.is_deleted
-    );
+    displayedSermons = sermons.filter((s) => s.is_favorite && !s.is_deleted);
   }
 
   if (activeTab === "trash") {
@@ -133,7 +162,6 @@ function Dashboard() {
     }
 
     groups[category].push(sermon);
-
     return groups;
   }, {});
 
@@ -141,42 +169,26 @@ function Dashboard() {
     <div style={pageStyle}>
       <aside style={sidebarStyle}>
         <h2>Preacher&apos;s Companion</h2>
-
         <p style={mutedText}>Sermon Workspace</p>
 
         <nav style={{ marginTop: "40px" }}>
-          <p
-            style={getNavStyle(activeTab === "all")}
-            onClick={() => setActiveTab("all")}
-          >
+          <p style={getNavStyle(activeTab === "all")} onClick={() => setActiveTab("all")}>
             All Sermons
           </p>
 
-          <p
-            style={getNavStyle(activeTab === "categories")}
-            onClick={() => setActiveTab("categories")}
-          >
+          <p style={getNavStyle(activeTab === "categories")} onClick={() => setActiveTab("categories")}>
             Categories
           </p>
 
-          <p
-            style={getNavStyle(activeTab === "favorites")}
-            onClick={() => setActiveTab("favorites")}
-          >
+          <p style={getNavStyle(activeTab === "favorites")} onClick={() => setActiveTab("favorites")}>
             Favorites
           </p>
 
-          <p
-            style={getNavStyle(activeTab === "trash")}
-            onClick={() => setActiveTab("trash")}
-          >
+          <p style={getNavStyle(activeTab === "trash")} onClick={() => setActiveTab("trash")}>
             Trash
           </p>
 
-          <p
-            style={getNavStyle(false)}
-            onClick={() => navigate("/settings")}
-          >
+          <p style={getNavStyle(false)} onClick={() => navigate("/settings")}>
             <Settings size={16} />
             Settings
           </p>
@@ -197,31 +209,20 @@ function Dashboard() {
               {activeTab === "favorites" && "Favorite Sermons"}
               {activeTab === "trash" && "Trash"}
             </h1>
-
-            <p style={subtitleStyle}>
-              Organize and access your ministry notes.
-            </p>
+            <p style={subtitleStyle}>Organize and access your ministry notes.</p>
           </div>
 
           <div style={topActions}>
             <div style={viewToggle}>
               <button
-                style={
-                  viewMode === "grid"
-                    ? activeViewButton
-                    : viewButton
-                }
+                style={viewMode === "grid" ? activeViewButton : viewButton}
                 onClick={() => setViewMode("grid")}
               >
                 <LayoutGrid size={18} />
               </button>
 
               <button
-                style={
-                  viewMode === "list"
-                    ? activeViewButton
-                    : viewButton
-                }
+                style={viewMode === "list" ? activeViewButton : viewButton}
                 onClick={() => setViewMode("list")}
               >
                 <List size={18} />
@@ -237,7 +238,6 @@ function Dashboard() {
 
         <div style={searchBoxStyle}>
           <Search size={20} />
-
           <input
             placeholder="Search sermons, scriptures or categories..."
             value={searchTerm}
@@ -250,17 +250,19 @@ function Dashboard() {
           Object.keys(groupedByCategory).length > 0 ? (
             Object.keys(groupedByCategory).map((category) => (
               <div key={category} style={{ marginBottom: "35px" }}>
-                <h2 style={{ color: "#f59e0b" }}>
-                  {category}
-                </h2>
+                <div style={categoryHeader}>
+                  <h2 style={{ color: "#f59e0b", margin: 0 }}>{category}</h2>
 
-                <div
-                  style={
-                    viewMode === "grid"
-                      ? gridStyle
-                      : listStyle
-                  }
-                >
+                  <button
+                    style={renameCategoryButton}
+                    onClick={() => renameCategory(category)}
+                  >
+                    <Edit3 size={16} />
+                    Rename Category
+                  </button>
+                </div>
+
+                <div style={viewMode === "grid" ? gridStyle : listStyle}>
                   {groupedByCategory[category].map((sermon) => (
                     <SermonCard
                       key={sermon.id}
@@ -280,13 +282,7 @@ function Dashboard() {
             <p style={emptyText}>No sermons found.</p>
           )
         ) : (
-          <div
-            style={
-              viewMode === "grid"
-                ? gridStyle
-                : listStyle
-            }
-          >
+          <div style={viewMode === "grid" ? gridStyle : listStyle}>
             {filteredSermons.length > 0 ? (
               filteredSermons.map((sermon) => (
                 <SermonCard
@@ -321,11 +317,7 @@ function SermonCard({
 }) {
   return (
     <div
-      style={
-        viewMode === "grid"
-          ? cardStyle
-          : listCardStyle
-      }
+      style={viewMode === "grid" ? cardStyle : listCardStyle}
       onClick={() => {
         if (activeTab !== "trash") {
           navigate(`/editor/${sermon.id}`);
@@ -334,16 +326,9 @@ function SermonCard({
     >
       <div style={{ flex: 1 }}>
         <BookOpen color="#f59e0b" size={28} />
-
         <h3>{sermon.title}</h3>
-
-        <p style={mutedText}>
-          {sermon.category || "Uncategorized"}
-        </p>
-
-        <p style={{ color: "#cbd5e1" }}>
-          {sermon.scripture}
-        </p>
+        <p style={mutedText}>{sermon.category || "Uncategorized"}</p>
+        <p style={{ color: "#cbd5e1" }}>{sermon.scripture}</p>
       </div>
 
       {activeTab !== "trash" ? (
@@ -375,14 +360,7 @@ function SermonCard({
               toggleFavorite(sermon);
             }}
           >
-            <Star
-              size={16}
-              fill={
-                sermon.is_favorite
-                  ? "#f59e0b"
-                  : "none"
-              }
-            />
+            <Star size={16} fill={sermon.is_favorite ? "#f59e0b" : "none"} />
           </button>
 
           <button
@@ -426,14 +404,8 @@ const sidebarStyle = {
   borderRight: "1px solid #1e293b",
 };
 
-const mainStyle = {
-  flex: 1,
-  padding: "40px",
-};
-
-const mutedText = {
-  color: "#94a3b8",
-};
+const mainStyle = { flex: 1, padding: "40px" };
+const mutedText = { color: "#94a3b8" };
 
 const getNavStyle = (active) => ({
   padding: "12px",
@@ -460,16 +432,8 @@ const logoutNavStyle = {
   marginTop: "20px",
 };
 
-const headingStyle = {
-  margin: 0,
-  fontSize: "48px",
-  lineHeight: "1.1",
-};
-
-const subtitleStyle = {
-  color: "#94a3b8",
-  marginTop: "10px",
-};
+const headingStyle = { margin: 0, fontSize: "48px", lineHeight: "1.1" };
+const subtitleStyle = { color: "#94a3b8", marginTop: "10px" };
 
 const topBarStyle = {
   display: "flex",
@@ -486,10 +450,7 @@ const topActions = {
   gap: "14px",
 };
 
-const viewToggle = {
-  display: "flex",
-  gap: "6px",
-};
+const viewToggle = { display: "flex", gap: "6px" };
 
 const viewButton = {
   background: "#1e293b",
@@ -538,10 +499,31 @@ const searchInputStyle = {
   fontSize: "16px",
 };
 
+const categoryHeader = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "12px",
+  marginBottom: "15px",
+  flexWrap: "wrap",
+};
+
+const renameCategoryButton = {
+  background: "#1e293b",
+  color: "white",
+  border: "1px solid #334155",
+  padding: "8px 12px",
+  borderRadius: "8px",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  gap: "6px",
+  fontWeight: "bold",
+};
+
 const gridStyle = {
   display: "grid",
-  gridTemplateColumns:
-    "repeat(auto-fit, minmax(260px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
   gap: "20px",
 };
 
