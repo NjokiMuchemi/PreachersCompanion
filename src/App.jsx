@@ -6,6 +6,8 @@ import Dashboard from "./pages/Dashboard";
 import Editor from "./pages/Editor";
 import Preach from "./pages/Preach";
 import Settings from "./pages/Settings";
+import ForgotPassword from "./pages/ForgotPassword";
+import UpdatePassword from "./pages/UpdatePassword";
 
 function App() {
   return (
@@ -13,6 +15,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/update-password" element={<UpdatePassword />} />
 
         <Route path="/dashboard" element={<Dashboard />} />
 

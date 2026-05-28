@@ -1,17 +1,21 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
-function Login() {
-  const navigate = useNavigate();
-
+function ForgotPassword() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
 
-  async function handleLogin() {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+  async function handleReset() {
+    if (!email.trim()) {
+      alert("Please enter your email address.");
+      return;
+    }
+
+    const redirectTo = `${window.location.origin}/update-password`;
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo,
     });
 
     if (error) {
@@ -19,16 +23,16 @@ function Login() {
       return;
     }
 
-    navigate("/dashboard");
+    setMessage("Password reset link sent. Please check your email.");
   }
 
   return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-        <h1 style={headingStyle}>Preacher&apos;s Companion</h1>
+        <h1 style={headingStyle}>Reset Password</h1>
 
         <p style={subtitleStyle}>
-          Access your sermons and ministry notes anywhere.
+          Enter your email address and we will send you a password reset link.
         </p>
 
         <input
@@ -39,28 +43,16 @@ function Login() {
           style={inputStyle}
         />
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={inputStyle}
-        />
-
-        <div style={forgotWrapper}>
-          <Link to="/forgot-password" style={forgotLinkStyle}>
-            Forgot Password?
-          </Link>
-        </div>
-
-        <button style={buttonStyle} onClick={handleLogin}>
-          Login
+        <button style={buttonStyle} onClick={handleReset}>
+          Send Reset Link
         </button>
 
+        {message && <p style={successText}>{message}</p>}
+
         <p style={bottomTextStyle}>
-          Need access approval?{" "}
-          <Link to="/signup" style={linkStyle}>
-            Contact Admin
+          Remembered your password?{" "}
+          <Link to="/" style={linkStyle}>
+            Login
           </Link>
         </p>
       </div>
@@ -113,19 +105,6 @@ const inputStyle = {
   boxSizing: "border-box",
 };
 
-const forgotWrapper = {
-  textAlign: "right",
-  marginTop: "-10px",
-  marginBottom: "20px",
-};
-
-const forgotLinkStyle = {
-  color: "#f59e0b",
-  textDecoration: "none",
-  fontSize: "14px",
-  fontWeight: "bold",
-};
-
 const buttonStyle = {
   width: "100%",
   padding: "14px",
@@ -135,6 +114,12 @@ const buttonStyle = {
   fontSize: "16px",
   fontWeight: "bold",
   cursor: "pointer",
+};
+
+const successText = {
+  color: "#22c55e",
+  textAlign: "center",
+  marginTop: "18px",
 };
 
 const bottomTextStyle = {
@@ -149,4 +134,4 @@ const linkStyle = {
   fontWeight: "bold",
 };
 
-export default Login;
+export default ForgotPassword;
