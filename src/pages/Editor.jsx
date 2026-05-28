@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import mammoth from "mammoth";
 import {
   Save,
   Download,
@@ -172,7 +173,33 @@ function Editor() {
 
     setSaveStatus("Unsaved changes");
   }
+async function handleWordImport(event) {
+  const file = event.target.files[0];
 
+  if (!file) return;
+
+  if (!file.name.endsWith(".docx")) {
+    alert("Please upload a Word document ending with .docx");
+    return;
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+
+  const result = await mammoth.convertToHtml({
+    arrayBuffer,
+  });
+
+  const html = result.value;
+
+  editor.chain().focus().insertContent(html).run();
+
+  if (!title.trim()) {
+    const cleanFileName = file.name.replace(".docx", "");
+    setTitle(cleanFileName);
+  }
+
+  setSaveStatus("Unsaved changes");
+}
  async function handleImageUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -580,38 +607,57 @@ function Editor() {
             />
           </label>
 
-          <button style={toolButton} onClick={() => editor.chain().focus().unsetColor().run()}>
-            Clear Color
-          </button>
+<button
+  style={toolButton}
+  onClick={() => editor.chain().focus().unsetColor().run()}
+>
+  Clear Color
+</button>
 
-          <label style={colorLabel}>
-            <Highlighter size={18} />
-            Highlight
-            <input
-              type="color"
-              defaultValue="#fef08a"
-              onChange={(e) =>
-                editor.chain().focus().toggleHighlight({ color: e.target.value }).run()
-              }
-              style={colorInput}
-            />
-          </label>
+<label style={colorLabel}>
+  <Highlighter size={18} />
+  Highlight
+  <input
+    type="color"
+    defaultValue="#fef08a"
+    onChange={(e) =>
+      editor
+        .chain()
+        .focus()
+        .toggleHighlight({ color: e.target.value })
+        .run()
+    }
+    style={colorInput}
+  />
+</label>
 
-          <button style={toolButton} onClick={() => editor.chain().focus().unsetHighlight().run()}>
-            Clear Highlight
-          </button>
+<button
+  style={toolButton}
+  onClick={() => editor.chain().focus().unsetHighlight().run()}
+>
+  Clear Highlight
+</button>
 
-          <label style={imageUploadLabel}>
-            <ImagePlus size={18} />
-            Upload Image
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              style={{ display: "none" }}
-            />
-          </label>
+<label style={imageUploadLabel}>
+  <ImagePlus size={18} />
+  Upload Image
+  <input
+    type="file"
+    accept="image/*"
+    onChange={handleImageUpload}
+    style={{ display: "none" }}
+  />
+</label>
 
+<label style={importWordLabel}>
+  Import Word
+  <input
+    type="file"
+    accept=".docx"
+    onChange={handleWordImport}
+    style={{ display: "none" }}
+  />
+</label>
           <select
             style={selectStyle}
             onChange={(e) => editor.chain().focus().setFontFamily(e.target.value).run()}
