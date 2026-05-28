@@ -21,7 +21,7 @@ function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [viewMode, setViewMode] = useState("grid");
-
+const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,7 +37,13 @@ function Dashboard() {
       navigate("/");
       return;
     }
+const { data: adminData } = await supabase
+  .from("admin_users")
+  .select("id")
+  .eq("id", user.id)
+  .single();
 
+setIsAdmin(!!adminData);
     const { data, error } = await supabase
       .from("sermons")
       .select("*")
@@ -192,7 +198,11 @@ function Dashboard() {
             <Settings size={16} />
             Settings
           </p>
-
+{isAdmin && (
+  <p style={getNavStyle(false)} onClick={() => navigate("/admin")}>
+    Admin
+  </p>
+)}
           <p style={logoutNavStyle} onClick={logout}>
             <LogOut size={16} />
             Logout
