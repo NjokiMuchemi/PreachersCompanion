@@ -53,6 +53,11 @@ function Editor() {
   const [scripture, setScripture] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
 
+ const [aiAction, setAiAction] = useState("outline");
+ const [aiPrompt, setAiPrompt] = useState("");
+ const [aiLoading, setAiLoading] = useState(false);
+ const [aiResult, setAiResult] = useState("");
+
   const [bibleReference, setBibleReference] = useState("");
   const [bibleResult, setBibleResult] = useState("");
   const [bibleLoading, setBibleLoading] = useState(false);
@@ -191,7 +196,53 @@ function Editor() {
 
     setBibleLoading(false);
   }
+async function runAiAssistant() {
+  if (!editor) return;
 
+  setAiLoading(true);
+  setAiResult("");
+
+  try {
+    const response = await fetch("/api/sermon-assistant", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        action: aiAction,
+        prompt: aiPrompt,
+        sermonText: editor.getText(),
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert(data.error || "AI assistant failed.");
+      setAiLoading(false);
+      return;
+    }
+
+    setAiResult(data.result || "");
+  } catch (error) {
+    alert("Could not reach AI assistant.");
+  }
+
+  setAiLoading(false);
+}
+
+function insertAiResult() {
+  if (!aiResult || !editor) return;
+
+  const formatted = aiResult
+    .split("\n")
+    .map((line) => `<p>${line || "&nbsp;"}</p>`)
+    .join("");
+
+  editor.chain().focus().insertContent(formatted).run();
+
+  setSaveStatus("Unsaved changes");
+}
   function insertBibleVerse() {
     if (!bibleResult || !editor) return;
 
@@ -598,7 +649,47 @@ function Editor() {
           style={inputStyle}
         />
       </div>
+<div style={aiCard}>
+  <div style={aiHeader}>
+    <strong>AI Sermon Assistant</strong>
+  </div>
 
+  <div style={aiRow}>
+    <select
+      value={aiAction}
+      onChange={(e) => setAiAction(e.target.value)}
+      style={aiSelect}
+    >
+      <option value="outline">Generate Sermon Outline</option>
+      <option value="expand">Expand Sermon Point</option>
+      <option value="prayer">Create Prayer Points</option>
+      <option value="altar">Create Altar Call</option>
+      <option value="summary">Summarize Sermon</option>
+      <option value="cleanup">Clean Up Notes</option>
+    </select>
+
+    <button style={aiButton} onClick={runAiAssistant}>
+      {aiLoading ? "Working..." : "Generate"}
+    </button>
+  </div>
+
+  <textarea
+    placeholder="Optional instruction e.g. make it suitable for youth, Sunday service, leadership class..."
+    value={aiPrompt}
+    onChange={(e) => setAiPrompt(e.target.value)}
+    style={aiPromptBox}
+  />
+
+  {aiResult && (
+    <div style={aiResultBox}>
+      <pre style={aiResultText}>{aiResult}</pre>
+
+      <button style={insertAiButton} onClick={insertAiResult}>
+        Insert Into Sermon
+      </button>
+    </div>
+  )}
+</div>
       <div style={bibleCard}>
         <div style={bibleHeader}>
           <BookOpen size={20} />
@@ -796,7 +887,86 @@ const cardStyle = {
   border: "1px solid #1e293b",
   marginBottom: "25px",
 };
+const aiCard = {
+  background: "#0f172a",
+  border: "1px solid #1e293b",
+  padding: "20px",
+  borderRadius: "16px",
+  marginBottom: "25px",
+};
 
+const aiHeader = {
+  color: "#f59e0b",
+  marginBottom: "15px",
+  fontSize: "18px",
+};
+
+const aiRow = {
+  display: "flex",
+  gap: "10px",
+  flexWrap: "wrap",
+  marginBottom: "12px",
+};
+
+const aiSelect = {
+  flex: 1,
+  minWidth: "240px",
+  background: "#1e293b",
+  color: "white",
+  border: "1px solid #334155",
+  padding: "12px",
+  borderRadius: "10px",
+  fontSize: "16px",
+};
+
+const aiButton = {
+  background: "#f59e0b",
+  color: "#000",
+  border: "none",
+  padding: "12px 16px",
+  borderRadius: "10px",
+  cursor: "pointer",
+  fontWeight: "bold",
+};
+
+const aiPromptBox = {
+  width: "100%",
+  minHeight: "80px",
+  background: "#020617",
+  color: "white",
+  border: "1px solid #334155",
+  borderRadius: "10px",
+  padding: "12px",
+  fontSize: "15px",
+  boxSizing: "border-box",
+  marginBottom: "12px",
+};
+
+const aiResultBox = {
+  background: "#020617",
+  border: "1px solid #334155",
+  borderRadius: "10px",
+  padding: "15px",
+  marginTop: "12px",
+};
+
+const aiResultText = {
+  whiteSpace: "pre-wrap",
+  color: "#e5e7eb",
+  lineHeight: "1.6",
+  margin: 0,
+};
+
+const insertAiButton = {
+  background: "#2563eb",
+  color: "white",
+  border: "none",
+  padding: "10px 14px",
+  borderRadius: "8px",
+  cursor: "pointer",
+  fontWeight: "bold",
+  marginTop: "12px",
+};
 const bibleCard = {
   background: "#0f172a",
   border: "1px solid #1e293b",
