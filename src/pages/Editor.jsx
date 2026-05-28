@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import mammoth from "mammoth";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import {
   Save,
   Download,
@@ -37,7 +39,7 @@ import Color from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
 import FontFamily from "@tiptap/extension-font-family";
 import Image from "@tiptap/extension-image";
-
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 function Editor() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -173,6 +175,38 @@ function Editor() {
 
     setSaveStatus("Unsaved changes");
   }
+  async function handlePdfImport(event) {
+  const file = event.target.files[0];
+
+  if (!file) return;
+
+  if (!file.name.endsWith(".pdf")) {
+    alert("Please upload a PDF document.");
+    return;
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+  let fullText = "";
+
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+    const page = await pdf.getPage(pageNumber);
+    const textContent = await page.getTextContent();
+
+    const pageText = textContent.items.map((item) => item.str).join(" ");
+
+    fullText += `<p>${pageText}</p>`;
+  }
+
+  editor.chain().focus().insertContent(fullText).run();
+
+  if (!title.trim()) {
+    setTitle(file.name.replace(".pdf", ""));
+  }
+
+  setSaveStatus("Unsaved changes");
+}
 async function handleWordImport(event) {
   const file = event.target.files[0];
 
@@ -658,6 +692,15 @@ async function handleWordImport(event) {
     style={{ display: "none" }}
   />
 </label>
+<label style={importPdfLabel}>
+  Import PDF
+  <input
+    type="file"
+    accept=".pdf"
+    onChange={handlePdfImport}
+    style={{ display: "none" }}
+  />
+</label>
           <select
             style={selectStyle}
             onChange={(e) => editor.chain().focus().setFontFamily(e.target.value).run()}
@@ -857,6 +900,19 @@ const importWordLabel = {
   fontSize: "14px",
   fontWeight: "bold",
   border: "1px solid #6d28d9",
+  display: "flex",
+  alignItems: "center",
+  gap: "6px",
+};
+const importPdfLabel = {
+  background: "#be123c",
+  color: "white",
+  padding: "10px 14px",
+  borderRadius: "8px",
+  cursor: "pointer",
+  fontSize: "14px",
+  fontWeight: "bold",
+  border: "1px solid #9f1239",
   display: "flex",
   alignItems: "center",
   gap: "6px",
