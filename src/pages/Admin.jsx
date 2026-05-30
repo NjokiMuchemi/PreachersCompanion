@@ -15,6 +15,9 @@ function Admin() {
   const [temporaryPassword, setTemporaryPassword] = useState("");
   const [status, setStatus] = useState("");
 
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
   useEffect(() => {
     checkAdminAccess();
   }, []);
@@ -45,6 +48,8 @@ function Admin() {
 
     setIsAdmin(true);
     setCheckingAdmin(false);
+
+    await loadUsers(user.email);
   }
 
   async function createUser() {
@@ -81,6 +86,38 @@ function Admin() {
     setFullName("");
     setEmail("");
     setTemporaryPassword("");
+
+    await loadUsers(adminEmail);
+  }
+
+  async function loadUsers(currentAdminEmail) {
+    setLoadingUsers(true);
+
+    try {
+      const response = await fetch("/api/list-users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          adminEmail: currentAdminEmail,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.error || "Could not load users.");
+        setLoadingUsers(false);
+        return;
+      }
+
+      setUsers(data.users || []);
+    } catch (error) {
+      alert(error.message);
+    }
+
+    setLoadingUsers(false);
   }
 
   if (checkingAdmin) {
@@ -116,7 +153,7 @@ function Admin() {
         <h1 style={headingStyle}>Admin Dashboard</h1>
 
         <p style={subtitleStyle}>
-          Create approved users for Preacher&apos;s Companion.
+          Create approved users and view registered accounts.
         </p>
 
         <div style={adminBox}>
@@ -154,6 +191,42 @@ function Admin() {
 
         {status && <p style={statusStyle}>{status}</p>}
 
+        <h2 style={sectionHeading}>Registered Users</h2>
+
+        {loadingUsers ? (
+          <p style={subtitleStyle}>Loading users...</p>
+        ) : (
+          <div style={userListBox}>
+            {users.length === 0 ? (
+              <p style={subtitleStyle}>No users found.</p>
+            ) : (
+              users.map((user) => (
+                <div key={user.id} style={userCard}>
+                  <strong>
+                    {user.user_metadata?.full_name || "No Name"}
+                  </strong>
+
+                  <p style={userText}>{user.email}</p>
+
+                  <p style={userText}>
+                    Created:{" "}
+                    {user.created_at
+                      ? new Date(user.created_at).toLocaleDateString()
+                      : "-"}
+                  </p>
+
+                  <p style={userText}>
+                    Status:{" "}
+                    {user.email_confirmed_at
+                      ? "Active"
+                      : "Pending Email Confirmation"}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
         <div style={noteBox}>
           <strong>After creating a user:</strong>
           <p>
@@ -172,7 +245,7 @@ const pageStyle = {
   color: "white",
   display: "flex",
   justifyContent: "center",
-  alignItems: "center",
+  alignItems: "flex-start",
   padding: "30px",
   fontFamily: "Arial, sans-serif",
 };
@@ -189,7 +262,7 @@ const loadingStyle = {
 
 const cardStyle = {
   width: "100%",
-  maxWidth: "620px",
+  maxWidth: "760px",
   background: "#0f172a",
   border: "1px solid #1e293b",
   borderRadius: "20px",
@@ -264,6 +337,30 @@ const statusStyle = {
   marginTop: "18px",
   textAlign: "center",
   fontWeight: "bold",
+};
+
+const sectionHeading = {
+  marginTop: "35px",
+  marginBottom: "15px",
+  color: "white",
+};
+
+const userListBox = {
+  marginTop: "15px",
+};
+
+const userCard = {
+  background: "#020617",
+  border: "1px solid #334155",
+  borderRadius: "12px",
+  padding: "14px",
+  marginBottom: "12px",
+  color: "#cbd5e1",
+};
+
+const userText = {
+  margin: "6px 0",
+  color: "#94a3b8",
 };
 
 const noteBox = {
