@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Save, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-
+import { APP_VERSION } from "../version";
 function Settings() {
   const navigate = useNavigate();
 
@@ -92,6 +92,9 @@ function Settings() {
           <strong>Email:</strong> {email}
         </div>
 
+<div style={versionBox}>
+  <strong>Version:</strong> {APP_VERSION}
+</div>
         <input
           placeholder="Full Name"
           value={fullName}
@@ -198,6 +201,15 @@ const emailBox = {
   color: "#cbd5e1",
 };
 
+const versionBox = {
+  background: "#020617",
+  border: "1px solid #334155",
+  borderRadius: "12px",
+  padding: "14px",
+  marginBottom: "20px",
+  color: "#22c55e",
+  fontWeight: "bold",
+};
 const inputStyle = {
   width: "100%",
   padding: "14px",
