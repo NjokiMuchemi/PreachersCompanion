@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, UserPlus, Ban, CheckCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  UserPlus,
+  Ban,
+  CheckCircle,
+  Download,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
@@ -154,7 +160,57 @@ function Admin() {
     setStatus(data.message || "User updated successfully.");
     await loadUsers(adminEmail);
   }
+async function exportSermons() {
+  try {
+    setStatus("Preparing backup...");
 
+    const response = await fetch("/api/export-sermons", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        adminEmail,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert(data.error || "Could not export sermons.");
+      setStatus("");
+      return;
+    }
+
+    const blob = new Blob(
+      [JSON.stringify(data, null, 2)],
+      { type: "application/json" }
+    );
+
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+
+    link.href = url;
+
+    link.download = `preachers-companion-backup-${
+      new Date().toISOString().split("T")[0]
+    }.json`;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+    setStatus(
+      `Backup completed. ${data.total_sermons} sermons exported.`
+    );
+  } catch (error) {
+    alert(error.message);
+    setStatus("");
+  }
+}
   function isUserSuspended(user) {
     if (!user.banned_until) return false;
 
@@ -234,7 +290,12 @@ function Admin() {
         </button>
 
         {status && <p style={statusStyle}>{status}</p>}
-
+<div style={backupSection}>
+  <button style={backupButton} onClick={exportSermons}>
+    <Download size={18} />
+    Download Sermon Backup
+  </button>
+</div>
         <h2 style={sectionHeading}>Registered Users</h2>
 
         {loadingUsers ? (
@@ -375,7 +436,23 @@ const adminBox = {
   marginBottom: "20px",
   color: "#cbd5e1",
 };
+const backupSection = {
+  marginTop: "30px",
+  marginBottom: "20px",
+};
 
+const backupButton = {
+  background: "#2563eb",
+  color: "white",
+  border: "none",
+  padding: "12px 16px",
+  borderRadius: "10px",
+  cursor: "pointer",
+  fontWeight: "bold",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+};
 const inputStyle = {
   width: "100%",
   padding: "14px",
