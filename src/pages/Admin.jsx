@@ -5,6 +5,7 @@ import {
   Ban,
   CheckCircle,
   Download,
+  Upload,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
@@ -23,7 +24,7 @@ function Admin() {
 
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
-
+const [backupFile, setBackupFile] = useState(null);
   useEffect(() => {
     checkAdminAccess();
   }, []);
@@ -211,6 +212,45 @@ async function exportSermons() {
     setStatus("");
   }
 }
+async function restoreSermons() {
+  if (!backupFile) {
+    alert("Please select a backup file.");
+    return;
+  }
+
+  try {
+    setStatus("Restoring backup...");
+
+    const fileText = await backupFile.text();
+    const backup = JSON.parse(fileText);
+
+    const response = await fetch("/api/restore-sermons", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        adminEmail,
+        backup,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert(data.error || "Could not restore backup.");
+      setStatus("");
+      return;
+    }
+
+    setStatus(
+      `Backup restored successfully. ${data.restored_count} sermons restored.`
+    );
+  } catch (error) {
+    alert(error.message);
+    setStatus("");
+  }
+}
   function isUserSuspended(user) {
     if (!user.banned_until) return false;
 
@@ -294,6 +334,22 @@ async function exportSermons() {
   <button style={backupButton} onClick={exportSermons}>
     <Download size={18} />
     Download Sermon Backup
+  </button>
+
+  <div style={{ marginTop: "15px" }}>
+    <input
+      type="file"
+      accept=".json"
+      onChange={(e) => setBackupFile(e.target.files[0])}
+    />
+  </div>
+
+  <button
+    style={restoreButton}
+    onClick={restoreSermons}
+  >
+    <Upload size={18} />
+    Restore Backup
   </button>
 </div>
         <h2 style={sectionHeading}>Registered Users</h2>
@@ -452,6 +508,19 @@ const backupButton = {
   display: "flex",
   alignItems: "center",
   gap: "8px",
+};
+const restoreButton = {
+  background: "#16a34a",
+  color: "white",
+  border: "none",
+  padding: "12px 16px",
+  borderRadius: "10px",
+  cursor: "pointer",
+  fontWeight: "bold",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  marginTop: "12px",
 };
 const inputStyle = {
   width: "100%",
