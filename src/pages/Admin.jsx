@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, UserPlus } from "lucide-react";
+import { ArrowLeft, UserPlus, Ban, CheckCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
@@ -120,6 +120,50 @@ function Admin() {
     setLoadingUsers(false);
   }
 
+  async function updateUserStatus(user, action) {
+    const actionText = action === "suspend" ? "suspend" : "reactivate";
+
+    const confirmAction = window.confirm(
+      `Are you sure you want to ${actionText} ${user.email}?`
+    );
+
+    if (!confirmAction) return;
+
+    setStatus(`${actionText === "suspend" ? "Suspending" : "Reactivating"} user...`);
+
+    const response = await fetch("/api/update-user-status", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        adminEmail,
+        userId: user.id,
+        action,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setStatus("");
+      alert(data.error || "Could not update user.");
+      return;
+    }
+
+    setStatus(data.message || "User updated successfully.");
+    await loadUsers(adminEmail);
+  }
+
+  function isUserSuspended(user) {
+    if (!user.banned_until) return false;
+
+    const bannedUntil = new Date(user.banned_until).getTime();
+    const now = Date.now();
+
+    return bannedUntil > now;
+  }
+
   if (checkingAdmin) {
     return <div style={loadingStyle}>Checking admin access...</div>;
   }
@@ -153,7 +197,7 @@ function Admin() {
         <h1 style={headingStyle}>Admin Dashboard</h1>
 
         <p style={subtitleStyle}>
-          Create approved users and view registered accounts.
+          Create approved users, view accounts, and manage access.
         </p>
 
         <div style={adminBox}>
@@ -200,29 +244,55 @@ function Admin() {
             {users.length === 0 ? (
               <p style={subtitleStyle}>No users found.</p>
             ) : (
-              users.map((user) => (
-                <div key={user.id} style={userCard}>
-                  <strong>
-                    {user.user_metadata?.full_name || "No Name"}
-                  </strong>
+              users.map((user) => {
+                const suspended = isUserSuspended(user);
 
-                  <p style={userText}>{user.email}</p>
+                return (
+                  <div key={user.id} style={userCard}>
+                    <div>
+                      <strong>{user.user_metadata?.full_name || "No Name"}</strong>
 
-                  <p style={userText}>
-                    Created:{" "}
-                    {user.created_at
-                      ? new Date(user.created_at).toLocaleDateString()
-                      : "-"}
-                  </p>
+                      <p style={userText}>{user.email}</p>
 
-                  <p style={userText}>
-                    Status:{" "}
-                    {user.email_confirmed_at
-                      ? "Active"
-                      : "Pending Email Confirmation"}
-                  </p>
-                </div>
-              ))
+                      <p style={userText}>
+                        Created:{" "}
+                        {user.created_at
+                          ? new Date(user.created_at).toLocaleDateString()
+                          : "-"}
+                      </p>
+
+                      <p style={userText}>
+                        Status:{" "}
+                        {suspended
+                          ? "Suspended"
+                          : user.email_confirmed_at
+                          ? "Active"
+                          : "Pending Email Confirmation"}
+                      </p>
+                    </div>
+
+                    <div style={userActions}>
+                      {suspended ? (
+                        <button
+                          style={reactivateButton}
+                          onClick={() => updateUserStatus(user, "reactivate")}
+                        >
+                          <CheckCircle size={16} />
+                          Reactivate
+                        </button>
+                      ) : (
+                        <button
+                          style={suspendButton}
+                          onClick={() => updateUserStatus(user, "suspend")}
+                        >
+                          <Ban size={16} />
+                          Suspend
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         )}
@@ -356,11 +426,48 @@ const userCard = {
   padding: "14px",
   marginBottom: "12px",
   color: "#cbd5e1",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "14px",
+  flexWrap: "wrap",
 };
 
 const userText = {
   margin: "6px 0",
   color: "#94a3b8",
+};
+
+const userActions = {
+  display: "flex",
+  gap: "8px",
+  flexWrap: "wrap",
+};
+
+const suspendButton = {
+  background: "#dc2626",
+  color: "white",
+  border: "none",
+  padding: "10px 12px",
+  borderRadius: "8px",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  gap: "6px",
+  fontWeight: "bold",
+};
+
+const reactivateButton = {
+  background: "#16a34a",
+  color: "white",
+  border: "none",
+  padding: "10px 12px",
+  borderRadius: "8px",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  gap: "6px",
+  fontWeight: "bold",
 };
 
 const noteBox = {
