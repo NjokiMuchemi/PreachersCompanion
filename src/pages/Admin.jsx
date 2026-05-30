@@ -272,24 +272,26 @@ function Admin() {
                     </div>
 
                     <div style={userActions}>
-                      {suspended ? (
-                        <button
-                          style={reactivateButton}
-                          onClick={() => updateUserStatus(user, "reactivate")}
-                        >
-                          <CheckCircle size={16} />
-                          Reactivate
-                        </button>
-                      ) : (
-                        <button
-                          style={suspendButton}
-                          onClick={() => updateUserStatus(user, "suspend")}
-                        >
-                          <Ban size={16} />
-                          Suspend
-                        </button>
-                      )}
-                    </div>
+  {user.email === adminEmail ? (
+    <span style={ownerBadge}>Owner / Admin</span>
+  ) : suspended ? (
+    <button
+      style={reactivateButton}
+      onClick={() => updateUserStatus(user, "reactivate")}
+    >
+      <CheckCircle size={16} />
+      Reactivate
+    </button>
+  ) : (
+    <button
+      style={suspendButton}
+      onClick={() => updateUserStatus(user, "suspend")}
+    >
+      <Ban size={16} />
+      Suspend
+    </button>
+  )}
+</div>
                   </div>
                 );
               })
@@ -469,7 +471,13 @@ const reactivateButton = {
   gap: "6px",
   fontWeight: "bold",
 };
-
+const ownerBadge = {
+  background: "#f59e0b",
+  color: "#000",
+  padding: "10px 12px",
+  borderRadius: "8px",
+  fontWeight: "bold",
+};
 const noteBox = {
   background: "#020617",
   border: "1px solid #334155",
