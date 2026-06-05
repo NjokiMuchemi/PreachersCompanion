@@ -22,6 +22,7 @@ import {
   BookOpen,
   Search,
   ArrowLeft,
+  Share2,
 } from "lucide-react";
 
 import jsPDF from "jspdf";
@@ -63,6 +64,10 @@ function Editor() {
   const [bibleResult, setBibleResult] = useState("");
   const [bibleLoading, setBibleLoading] = useState(false);
   const [bibleTranslation, setBibleTranslation] = useState("kjv");
+
+  const [shareEmail, setShareEmail] = useState("");
+  const [shareStatus, setShareStatus] = useState("");
+  const [showShareBox, setShowShareBox] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -369,6 +374,79 @@ function Editor() {
     setSaveStatus("Unsaved changes");
   }
 
+
+  async function handleShareSermon() {
+    if (!id) {
+      alert("Please save the sermon first before sharing.");
+      return;
+    }
+
+    if (!shareEmail.trim()) {
+      alert("Please enter the recipient's login email.");
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!user || !session) {
+      alert("You must be logged in to share sermons.");
+      return;
+    }
+
+    if (shareEmail.trim().toLowerCase() === user.email?.toLowerCase()) {
+      alert("You cannot share a sermon with yourself.");
+      return;
+    }
+
+    setShareStatus("Checking recipient...");
+
+    const lookupResponse = await fetch("/api/find-user-by-email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        email: shareEmail.trim(),
+      }),
+    });
+
+    const lookupData = await lookupResponse.json();
+
+    if (!lookupResponse.ok) {
+      setShareStatus("");
+      alert(lookupData.error || "Recipient not found.");
+      return;
+    }
+
+    setShareStatus("Sharing sermon...");
+
+    const { error } = await supabase.from("sermon_shares").insert([
+      {
+        sender_id: user.id,
+        recipient_id: lookupData.user.id,
+        sermon_id: id,
+        status: "pending",
+      },
+    ]);
+
+    if (error) {
+      setShareStatus("");
+      alert(error.message);
+      return;
+    }
+
+    setShareEmail("");
+    setShareStatus("Sermon shared successfully.");
+    alert("Sermon shared successfully.");
+  }
+
   async function handleSave() {
     const content = editor?.getHTML() || "";
 
@@ -601,6 +679,15 @@ function Editor() {
           </button>
 
           {id && (
+            <button
+              style={shareButton}
+              onClick={() => setShowShareBox(!showShareBox)}
+            >
+              <Share2 size={18} /> Share
+            </button>
+          )}
+
+          {id && (
             <button style={deleteButton} onClick={handleDelete}>
               <Trash2 size={18} /> Delete
             </button>
@@ -612,6 +699,32 @@ function Editor() {
           </button>
         </div>
       </div>
+
+      {showShareBox && (
+        <div style={shareBox}>
+          <h2 style={shareTitle}>Share Sermon</h2>
+          <p style={shareHelp}>
+            Enter the login email of another Preacher&apos;s Companion user.
+            They will see the sermon under Shared With Me and can open, save a
+            copy, or discard it.
+          </p>
+
+          <input
+            type="email"
+            placeholder="Recipient login email"
+            value={shareEmail}
+            onChange={(e) => setShareEmail(e.target.value)}
+            style={inputStyle}
+          />
+
+          <button style={shareSendButton} onClick={handleShareSermon}>
+            <Share2 size={18} />
+            Send Sermon
+          </button>
+
+          {shareStatus && <p style={shareStatusStyle}>{shareStatus}</p>}
+        </div>
+      )}
 
       <div style={cardStyle}>
         <input
@@ -1230,6 +1343,58 @@ const secondaryButton = {
   display: "flex",
   alignItems: "center",
   gap: "8px",
+};
+
+
+const shareButton = {
+  background: "#7c3aed",
+  color: "white",
+  border: "none",
+  padding: "12px 18px",
+  borderRadius: "10px",
+  fontWeight: "bold",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+};
+
+const shareBox = {
+  background: "#0f172a",
+  border: "1px solid #334155",
+  padding: "20px",
+  borderRadius: "16px",
+  marginBottom: "25px",
+};
+
+const shareTitle = {
+  margin: "0 0 8px",
+  color: "#f59e0b",
+};
+
+const shareHelp = {
+  color: "#94a3b8",
+  lineHeight: "1.6",
+  marginBottom: "16px",
+};
+
+const shareSendButton = {
+  background: "#7c3aed",
+  color: "white",
+  border: "none",
+  padding: "12px 16px",
+  borderRadius: "10px",
+  fontWeight: "bold",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+};
+
+const shareStatusStyle = {
+  color: "#22c55e",
+  marginTop: "12px",
+  fontWeight: "bold",
 };
 
 const deleteButton = {
