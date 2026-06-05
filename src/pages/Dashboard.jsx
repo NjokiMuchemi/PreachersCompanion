@@ -22,7 +22,6 @@ function Dashboard() {
   const [activeTab, setActiveTab] = useState("all");
   const [viewMode, setViewMode] = useState("grid");
   const [isAdmin, setIsAdmin] = useState(false);
-
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -38,7 +37,6 @@ function Dashboard() {
       navigate("/");
       return;
     }
-
     const { data: adminData } = await supabase
       .from("admin_users")
       .select("id")
@@ -46,7 +44,6 @@ function Dashboard() {
       .single();
 
     setIsAdmin(!!adminData);
-
     const { data, error } = await supabase
       .from("sermons")
       .select("*")
@@ -85,17 +82,6 @@ function Dashboard() {
 
     if (!user) return;
 
-    const affectedSermons = sermons.filter(
-      (sermon) => (sermon.category || "Uncategorized") === oldCategory
-    );
-
-    const affectedIds = affectedSermons.map((sermon) => sermon.id);
-
-    if (affectedIds.length === 0) {
-      alert("No sermons found in this category.");
-      return;
-    }
-
     const { error } = await supabase
       .from("sermons")
       .update({
@@ -103,7 +89,7 @@ function Dashboard() {
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", user.id)
-      .in("id", affectedIds);
+      .eq("category", oldCategory);
 
     if (error) {
       alert(error.message);
@@ -112,7 +98,7 @@ function Dashboard() {
 
     setSermons((current) =>
       current.map((sermon) =>
-        affectedIds.includes(sermon.id)
+        sermon.category === oldCategory
           ? { ...sermon, category: cleanCategory }
           : sermon
       )
@@ -120,7 +106,7 @@ function Dashboard() {
 
     await fetchSermons();
 
-    alert(`Category renamed to "${cleanCategory}" successfully.`);
+    alert(`Category renamed successfully.`);
   }
 
   async function logout() {
@@ -129,48 +115,33 @@ function Dashboard() {
   }
 
   async function toggleFavorite(sermon) {
-    const { error } = await supabase
+    await supabase
       .from("sermons")
       .update({ is_favorite: !sermon.is_favorite })
       .eq("id", sermon.id);
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    await fetchSermons();
+    fetchSermons();
   }
 
   async function moveToTrash(sermon) {
     const confirmTrash = window.confirm("Move this sermon to Trash?");
     if (!confirmTrash) return;
 
-    const { error } = await supabase
+    await supabase
       .from("sermons")
       .update({ is_deleted: true })
       .eq("id", sermon.id);
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    await fetchSermons();
+    fetchSermons();
   }
 
   async function restoreSermon(sermon) {
-    const { error } = await supabase
+    await supabase
       .from("sermons")
       .update({ is_deleted: false })
       .eq("id", sermon.id);
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    await fetchSermons();
+    fetchSermons();
   }
 
   let displayedSermons = sermons;
@@ -193,14 +164,11 @@ function Dashboard() {
 
   const filteredSermons = displayedSermons.filter((sermon) => {
     const search = searchTerm.toLowerCase();
-    const tagsText = Array.isArray(sermon.tags) ? sermon.tags.join(" ") : "";
 
     return (
       sermon.title?.toLowerCase().includes(search) ||
       sermon.category?.toLowerCase().includes(search) ||
-      sermon.scripture?.toLowerCase().includes(search) ||
-      sermon.content?.toLowerCase().includes(search) ||
-      tagsText.toLowerCase().includes(search)
+      sermon.scripture?.toLowerCase().includes(search)
     );
   });
 
@@ -220,40 +188,30 @@ function Dashboard() {
       <aside style={sidebarStyle}>
         <div style={brandBox}>
           <h2 style={brandTitle}>PREACHER&apos;S COMPANION</h2>
-          <p style={brandScripture}>Scripture. Organize. Prepare. Preach.</p>
-          <p style={poweredBy}>
-            Powered by Nebkona Investors Ltd
-            <br />
-            Technologies Division
+          <p style={brandTagline}>From Revelation to Proclamation</p>
+          <p style={brandScripture}>
+            He who has my word, let him speak my word faithfully. Jer 23:28
+          </p>
+          <p style={brandPowered}>
+            Powered by Nebkona Investors Ltd<br />
+            Technologies Division @2026
           </p>
         </div>
 
-        <nav style={{ marginTop: "35px" }}>
-          <p
-            style={getNavStyle(activeTab === "all")}
-            onClick={() => setActiveTab("all")}
-          >
+        <nav style={{ marginTop: "40px" }}>
+          <p style={getNavStyle(activeTab === "all")} onClick={() => setActiveTab("all")}>
             All Sermons
           </p>
 
-          <p
-            style={getNavStyle(activeTab === "categories")}
-            onClick={() => setActiveTab("categories")}
-          >
+          <p style={getNavStyle(activeTab === "categories")} onClick={() => setActiveTab("categories")}>
             Categories
           </p>
 
-          <p
-            style={getNavStyle(activeTab === "favorites")}
-            onClick={() => setActiveTab("favorites")}
-          >
+          <p style={getNavStyle(activeTab === "favorites")} onClick={() => setActiveTab("favorites")}>
             Favorites
           </p>
 
-          <p
-            style={getNavStyle(activeTab === "trash")}
-            onClick={() => setActiveTab("trash")}
-          >
+          <p style={getNavStyle(activeTab === "trash")} onClick={() => setActiveTab("trash")}>
             Trash
           </p>
 
@@ -261,13 +219,11 @@ function Dashboard() {
             <Settings size={16} />
             Settings
           </p>
-
-          {isAdmin && (
-            <p style={getNavStyle(false)} onClick={() => navigate("/admin")}>
-              Admin
-            </p>
-          )}
-
+{isAdmin && (
+  <p style={getNavStyle(false)} onClick={() => navigate("/admin")}>
+    Admin
+  </p>
+)}
           <p style={logoutNavStyle} onClick={logout}>
             <LogOut size={16} />
             Logout
@@ -314,7 +270,7 @@ function Dashboard() {
         <div style={searchBoxStyle}>
           <Search size={20} />
           <input
-            placeholder="Search sermons, scriptures, categories, tags or content..."
+            placeholder="Search sermons, scriptures or categories..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={searchInputStyle}
@@ -390,8 +346,6 @@ function SermonCard({
   moveToTrash,
   restoreSermon,
 }) {
-  const tags = Array.isArray(sermon.tags) ? sermon.tags : [];
-
   return (
     <div
       style={viewMode === "grid" ? cardStyle : listCardStyle}
@@ -406,16 +360,6 @@ function SermonCard({
         <h3>{sermon.title}</h3>
         <p style={mutedText}>{sermon.category || "Uncategorized"}</p>
         <p style={{ color: "#cbd5e1" }}>{sermon.scripture}</p>
-
-        {tags.length > 0 && (
-          <div style={tagRow}>
-            {tags.map((tag) => (
-              <span key={tag} style={tagChip}>
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
 
       {activeTab !== "trash" ? (
@@ -485,33 +429,44 @@ const pageStyle = {
 };
 
 const sidebarStyle = {
-  width: "280px",
+  width: "260px",
   background: "#0f172a",
   padding: "30px",
   borderRight: "1px solid #1e293b",
 };
 
 const brandBox = {
-  borderBottom: "1px solid #1e293b",
-  paddingBottom: "22px",
+  background: "#020617",
+  border: "1px solid #334155",
+  borderRadius: "16px",
+  padding: "18px",
 };
 
 const brandTitle = {
-  margin: 0,
-  color: "white",
+  color: "#f59e0b",
   fontSize: "22px",
   lineHeight: "1.1",
+  margin: "0 0 10px",
+  fontWeight: "900",
   letterSpacing: "0.5px",
 };
 
-const brandScripture = {
-  color: "#f59e0b",
+const brandTagline = {
+  color: "white",
+  fontSize: "14px",
   fontWeight: "bold",
-  margin: "10px 0 8px",
-  lineHeight: "1.4",
+  margin: "0 0 10px",
 };
 
-const poweredBy = {
+const brandScripture = {
+  color: "#cbd5e1",
+  fontSize: "13px",
+  lineHeight: "1.5",
+  margin: "0 0 14px",
+  fontStyle: "italic",
+};
+
+const brandPowered = {
   color: "#94a3b8",
   fontSize: "12px",
   lineHeight: "1.5",
@@ -665,23 +620,6 @@ const listCardStyle = {
   justifyContent: "space-between",
   alignItems: "center",
   gap: "20px",
-};
-
-const tagRow = {
-  display: "flex",
-  gap: "6px",
-  flexWrap: "wrap",
-  marginTop: "10px",
-};
-
-const tagChip = {
-  background: "#1e293b",
-  color: "#f59e0b",
-  border: "1px solid #334155",
-  borderRadius: "999px",
-  padding: "4px 8px",
-  fontSize: "12px",
-  fontWeight: "bold",
 };
 
 const buttonRow = {
