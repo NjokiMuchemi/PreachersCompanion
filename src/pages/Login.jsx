@@ -25,7 +25,17 @@ function Login() {
   return (
     <div style={pageStyle}>
       <div style={cardStyle}>
-        <h1 style={headingStyle}>Preacher&apos;s Companion</h1>
+        <div style={brandBox}>
+          <h1 style={brandTitle}>PREACHER&apos;S COMPANION</h1>
+
+          <p style={tagline}>From Revelation to Proclamation</p>
+
+          <p style={scriptureStyle}>
+            He who has my word, let him speak my word faithfully.
+            <br />
+            Jeremiah 23:28
+          </p>
+        </div>
 
         <p style={subtitleStyle}>
           Access your sermons and ministry notes anywhere.
@@ -63,6 +73,12 @@ function Login() {
             Contact Admin
           </Link>
         </p>
+
+        <div style={poweredBox}>
+          Powered by Nebkona Investors Ltd
+          <br />
+          Technologies Division @2026
+        </div>
       </div>
     </div>
   );
@@ -83,22 +99,42 @@ const cardStyle = {
   padding: "40px",
   borderRadius: "20px",
   width: "100%",
-  maxWidth: "420px",
+  maxWidth: "460px",
   boxShadow: "0 0 30px rgba(0,0,0,0.4)",
 };
 
-const headingStyle = {
-  color: "white",
-  marginBottom: "10px",
+const brandBox = {
   textAlign: "center",
-  fontSize: "42px",
+  marginBottom: "26px",
+};
+
+const brandTitle = {
+  color: "#f59e0b",
+  margin: 0,
+  fontSize: "38px",
   lineHeight: "1.05",
+  fontWeight: "900",
+};
+
+const tagline = {
+  color: "white",
+  fontSize: "18px",
+  fontWeight: "bold",
+  marginTop: "12px",
+  marginBottom: "10px",
+};
+
+const scriptureStyle = {
+  color: "#cbd5e1",
+  fontSize: "14px",
+  lineHeight: "1.6",
+  fontStyle: "italic",
 };
 
 const subtitleStyle = {
   color: "#94a3b8",
   textAlign: "center",
-  marginBottom: "30px",
+  marginBottom: "28px",
 };
 
 const inputStyle = {
@@ -147,6 +183,16 @@ const linkStyle = {
   color: "#f59e0b",
   textDecoration: "none",
   fontWeight: "bold",
+};
+
+const poweredBox = {
+  marginTop: "28px",
+  paddingTop: "18px",
+  borderTop: "1px solid #334155",
+  color: "#64748b",
+  textAlign: "center",
+  fontSize: "13px",
+  lineHeight: "1.5",
 };
 
 export default Login;
