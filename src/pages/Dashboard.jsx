@@ -15,6 +15,7 @@ import {
 
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import brandLogo from "../assets/brand-logo.png";
 
 function Dashboard() {
   const [sermons, setSermons] = useState([]);
@@ -225,10 +226,16 @@ function Dashboard() {
     <div style={pageStyle}>
       <aside style={sidebarStyle}>
         <div style={brandBox}>
+          <img
+            src={brandLogo}
+            alt="Preacher's Companion logo"
+            style={brandLogoStyle}
+          />
+
           <h2 style={brandTitle}>PREACHER&apos;S COMPANION</h2>
           <p style={brandTagline}>From Revelation to Proclamation</p>
           <p style={brandVerse}>
-            He who has my word, let him speak my word faithfully.
+            “He who has my word, let him speak my word faithfully.”
             <br />
             Jer. 23:28
           </p>
@@ -349,7 +356,7 @@ function Dashboard() {
             Object.keys(groupedByCategory).map((category) => (
               <div key={category} style={{ marginBottom: "35px" }}>
                 <div style={categoryHeader}>
-                  <h2 style={{ color: "#f59e0b", margin: 0 }}>{category}</h2>
+                  <h2 style={{ color: "#d4a017", margin: 0 }}>{category}</h2>
 
                   <button
                     style={renameCategoryButton}
@@ -466,7 +473,7 @@ function PreviewLayout({
       <div style={previewDetailStyle}>
         {selectedSermon ? (
           <>
-            <BookOpen color="#f59e0b" size={34} />
+            <BookOpen color="#d4a017" size={34} />
 
             <h2 style={previewTitleStyle}>
               {selectedSermon.title || "Untitled Sermon"}
@@ -510,7 +517,7 @@ function PreviewLayout({
                   >
                     <Star
                       size={16}
-                      fill={selectedSermon.is_favorite ? "#f59e0b" : "none"}
+                      fill={selectedSermon.is_favorite ? "#d4a017" : "none"}
                     />
                   </button>
 
@@ -569,7 +576,7 @@ function SermonCard({
       }}
     >
       <div style={{ flex: 1 }}>
-        <BookOpen color="#f59e0b" size={28} />
+        <BookOpen color="#d4a017" size={28} />
         <h3>{sermon.title}</h3>
         <p style={mutedText}>{sermon.category || "Uncategorized"}</p>
         <p style={{ color: "#cbd5e1" }}>{sermon.scripture}</p>
@@ -614,7 +621,7 @@ function SermonCard({
               toggleFavorite(sermon);
             }}
           >
-            <Star size={16} fill={sermon.is_favorite ? "#f59e0b" : "none"} />
+            <Star size={16} fill={sermon.is_favorite ? "#d4a017" : "none"} />
           </button>
 
           <button
@@ -659,12 +666,26 @@ const sidebarStyle = {
 };
 
 const brandBox = {
-  borderBottom: "1px solid #334155",
-  paddingBottom: "20px",
+  background:
+    "linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98))",
+  border: "1px solid rgba(212,160,23,0.35)",
+  borderRadius: "18px",
+  padding: "18px",
+  textAlign: "center",
+  boxShadow: "0 16px 35px rgba(0,0,0,0.25)",
+};
+
+const brandLogoStyle = {
+  width: "92px",
+  height: "70px",
+  objectFit: "contain",
+  display: "block",
+  margin: "0 auto 10px",
+  borderRadius: "14px",
 };
 
 const brandTitle = {
-  color: "#f59e0b",
+  color: "#d4a017",
   margin: 0,
   fontSize: "20px",
   lineHeight: "1.1",
@@ -698,7 +719,7 @@ const mutedText = { color: "#94a3b8" };
 const getNavStyle = (active) => ({
   padding: "12px",
   color: active ? "#000" : "#cbd5e1",
-  background: active ? "#f59e0b" : "transparent",
+  background: active ? "#d4a017" : "transparent",
   borderRadius: "10px",
   cursor: "pointer",
   fontWeight: active ? "bold" : "normal",
@@ -751,13 +772,13 @@ const viewButton = {
 
 const activeViewButton = {
   ...viewButton,
-  background: "#f59e0b",
+  background: "#d4a017",
   color: "#000",
   fontWeight: "bold",
 };
 
 const newButtonStyle = {
-  background: "#f59e0b",
+  background: "#d4a017",
   color: "#000",
   padding: "12px 18px",
   borderRadius: "10px",
@@ -859,7 +880,7 @@ const smallButton = {
 };
 
 const preachButton = {
-  background: "#f59e0b",
+  background: "#d4a017",
   color: "#000",
   border: "none",
   padding: "8px 12px",
@@ -870,7 +891,7 @@ const preachButton = {
 
 const favoriteButton = {
   background: "#1e293b",
-  color: "#f59e0b",
+  color: "#d4a017",
   border: "1px solid #334155",
   padding: "8px 12px",
   borderRadius: "8px",
@@ -912,7 +933,7 @@ const tagRowStyle = {
 const tagBadgeStyle = {
   background: "#1e293b",
   border: "1px solid #334155",
-  color: "#f59e0b",
+  color: "#d4a017",
   padding: "6px 10px",
   borderRadius: "999px",
   fontWeight: "bold",
@@ -943,7 +964,7 @@ const previewListStyle = {
 };
 
 const previewListHeading = {
-  color: "#f59e0b",
+  color: "#d4a017",
   marginTop: 0,
 };
 
@@ -959,7 +980,7 @@ const previewItemStyle = {
 const activePreviewItemStyle = {
   ...previewItemStyle,
   background: "#1e293b",
-  border: "1px solid #f59e0b",
+  border: "1px solid #d4a017",
 };
 
 const previewItemMeta = {
