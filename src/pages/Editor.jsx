@@ -11,7 +11,15 @@ import {
   Italic,
   Underline as UnderlineIcon,
   List,
+  ListOrdered,
   Heading1,
+  Heading2,
+  Heading3,
+  Quote,
+  Undo2,
+  Redo2,
+  Eraser,
+  Minus,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -22,7 +30,6 @@ import {
   BookOpen,
   Search,
   ArrowLeft,
-  Share2,
 } from "lucide-react";
 
 import jsPDF from "jspdf";
@@ -64,10 +71,6 @@ function Editor() {
   const [bibleResult, setBibleResult] = useState("");
   const [bibleLoading, setBibleLoading] = useState(false);
   const [bibleTranslation, setBibleTranslation] = useState("kjv");
-
-  const [shareEmail, setShareEmail] = useState("");
-  const [shareStatus, setShareStatus] = useState("");
-  const [showShareBox, setShowShareBox] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -374,79 +377,6 @@ function Editor() {
     setSaveStatus("Unsaved changes");
   }
 
-
-  async function handleShareSermon() {
-    if (!id) {
-      alert("Please save the sermon first before sharing.");
-      return;
-    }
-
-    if (!shareEmail.trim()) {
-      alert("Please enter the recipient's login email.");
-      return;
-    }
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!user || !session) {
-      alert("You must be logged in to share sermons.");
-      return;
-    }
-
-    if (shareEmail.trim().toLowerCase() === user.email?.toLowerCase()) {
-      alert("You cannot share a sermon with yourself.");
-      return;
-    }
-
-    setShareStatus("Checking recipient...");
-
-    const lookupResponse = await fetch("/api/find-user-by-email", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        email: shareEmail.trim(),
-      }),
-    });
-
-    const lookupData = await lookupResponse.json();
-
-    if (!lookupResponse.ok) {
-      setShareStatus("");
-      alert(lookupData.error || "Recipient not found.");
-      return;
-    }
-
-    setShareStatus("Sharing sermon...");
-
-    const { error } = await supabase.from("sermon_shares").insert([
-      {
-        sender_id: user.id,
-        recipient_id: lookupData.user.id,
-        sermon_id: id,
-        status: "pending",
-      },
-    ]);
-
-    if (error) {
-      setShareStatus("");
-      alert(error.message);
-      return;
-    }
-
-    setShareEmail("");
-    setShareStatus("Sermon shared successfully.");
-    alert("Sermon shared successfully.");
-  }
-
   async function handleSave() {
     const content = editor?.getHTML() || "";
 
@@ -679,15 +609,6 @@ function Editor() {
           </button>
 
           {id && (
-            <button
-              style={shareButton}
-              onClick={() => setShowShareBox(!showShareBox)}
-            >
-              <Share2 size={18} /> Share
-            </button>
-          )}
-
-          {id && (
             <button style={deleteButton} onClick={handleDelete}>
               <Trash2 size={18} /> Delete
             </button>
@@ -699,32 +620,6 @@ function Editor() {
           </button>
         </div>
       </div>
-
-      {showShareBox && (
-        <div style={shareBox}>
-          <h2 style={shareTitle}>Share Sermon</h2>
-          <p style={shareHelp}>
-            Enter the login email of another Preacher&apos;s Companion user.
-            They will see the sermon under Shared With Me and can open, save a
-            copy, or discard it.
-          </p>
-
-          <input
-            type="email"
-            placeholder="Recipient login email"
-            value={shareEmail}
-            onChange={(e) => setShareEmail(e.target.value)}
-            style={inputStyle}
-          />
-
-          <button style={shareSendButton} onClick={handleShareSermon}>
-            <Share2 size={18} />
-            Send Sermon
-          </button>
-
-          {shareStatus && <p style={shareStatusStyle}>{shareStatus}</p>}
-        </div>
-      )}
 
       <div style={cardStyle}>
         <input
@@ -868,48 +763,136 @@ function Editor() {
           </button>
         </div>
 
-        {bibleResult && <pre style={bibleResultBox}>{bibleResult}</pre>}
-      </div>
+        {bibleResult && <pre style={bible<div style={toolbarStyle}>
+          <button
+            title="Undo"
+            style={toolButton}
+            onClick={() => editor.chain().focus().undo().run()}
+          >
+            <Undo2 size={18} />
+          </button>
 
-      <div style={editorCard}>
-        <div style={toolbarStyle}>
-          <button style={toolButton} onClick={() => editor.chain().focus().toggleBold().run()}>
+          <button
+            title="Redo"
+            style={toolButton}
+            onClick={() => editor.chain().focus().redo().run()}
+          >
+            <Redo2 size={18} />
+          </button>
+
+          <button
+            title="Bold"
+            style={toolButton}
+            onClick={() => editor.chain().focus().toggleBold().run()}
+          >
             <Bold size={18} />
           </button>
 
-          <button style={toolButton} onClick={() => editor.chain().focus().toggleItalic().run()}>
+          <button
+            title="Italic"
+            style={toolButton}
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+          >
             <Italic size={18} />
           </button>
 
-          <button style={toolButton} onClick={() => editor.chain().focus().toggleUnderline().run()}>
+          <button
+            title="Underline"
+            style={toolButton}
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+          >
             <UnderlineIcon size={18} />
           </button>
 
-          <button style={toolButton} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
+          <button
+            title="Heading 1"
+            style={toolButton}
+            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+          >
             <Heading1 size={18} />
           </button>
 
-          <button style={toolButton} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+          <button
+            title="Heading 2"
+            style={toolButton}
+            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+          >
+            <Heading2 size={18} />
+          </button>
+
+          <button
+            title="Heading 3"
+            style={toolButton}
+            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+          >
+            <Heading3 size={18} />
+          </button>
+
+          <button
+            title="Bullet List"
+            style={toolButton}
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+          >
             <List size={18} />
           </button>
 
-          <button style={toolButton} onClick={() => editor.chain().focus().setTextAlign("left").run()}>
+          <button
+            title="Numbered List"
+            style={toolButton}
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          >
+            <ListOrdered size={18} />
+          </button>
+
+          <button
+            title="Block Quote"
+            style={toolButton}
+            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+          >
+            <Quote size={18} />
+          </button>
+
+          <button
+            title="Horizontal Line"
+            style={toolButton}
+            onClick={() => editor.chain().focus().setHorizontalRule().run()}
+          >
+            <Minus size={18} />
+          </button>
+
+          <button
+            title="Align Left"
+            style={toolButton}
+            onClick={() => editor.chain().focus().setTextAlign("left").run()}
+          >
             <AlignLeft size={18} />
           </button>
 
-          <button style={toolButton} onClick={() => editor.chain().focus().setTextAlign("center").run()}>
+          <button
+            title="Align Center"
+            style={toolButton}
+            onClick={() => editor.chain().focus().setTextAlign("center").run()}
+          >
             <AlignCenter size={18} />
           </button>
 
-          <button style={toolButton} onClick={() => editor.chain().focus().setTextAlign("right").run()}>
+          <button
+            title="Align Right"
+            style={toolButton}
+            onClick={() => editor.chain().focus().setTextAlign("right").run()}
+          >
             <AlignRight size={18} />
           </button>
 
-          <button style={toolButton} onClick={() => editor.chain().focus().setTextAlign("justify").run()}>
+          <button
+            title="Justify"
+            style={toolButton}
+            onClick={() => editor.chain().focus().setTextAlign("justify").run()}
+          >
             <AlignJustify size={18} />
           </button>
 
-          <label style={colorLabel}>
+          <label style={colorLabel} title="Text Color">
             <Palette size={18} />
             Text
             <input
@@ -920,11 +903,15 @@ function Editor() {
             />
           </label>
 
-          <button style={toolButton} onClick={() => editor.chain().focus().unsetColor().run()}>
+          <button
+            title="Clear Text Color"
+            style={toolButton}
+            onClick={() => editor.chain().focus().unsetColor().run()}
+          >
             Clear Color
           </button>
 
-          <label style={colorLabel}>
+          <label style={colorLabel} title="Highlight">
             <Highlighter size={18} />
             Highlight
             <input
@@ -941,8 +928,41 @@ function Editor() {
             />
           </label>
 
-          <button style={toolButton} onClick={() => editor.chain().focus().unsetHighlight().run()}>
+          <button
+            title="Clear Highlight"
+            style={toolButton}
+            onClick={() => editor.chain().focus().unsetHighlight().run()}
+          >
             Clear Highlight
+          </button>
+
+          <button
+            title="Clear Formatting"
+            style={toolButton}
+            onClick={() =>
+              editor.chain().focus().unsetAllMarks().clearNodes().run()
+            }
+          >
+            <Eraser size={18} />
+            Clear Format
+          </button>
+
+          <button
+            title="Remove Extra Blank Spaces"
+            style={toolButton}
+            onClick={() => {
+              const cleaned = editor
+                .getHTML()
+                .replace(/<p>\s*<\/p>/g, "")
+                .replace(/<p><br><\/p>/g, "")
+                .replace(/(<br\s*\/?>\s*){3,}/g, "<br><br>")
+                .replace(/\n{3,}/g, "\n\n");
+
+              editor.commands.setContent(cleaned);
+              setSaveStatus("Unsaved changes");
+            }}
+          >
+            Clean Spaces
           </button>
 
           <label style={imageUploadLabel}>
@@ -989,6 +1009,10 @@ function Editor() {
             <option value="Times New Roman">Times New Roman</option>
             <option value="Verdana">Verdana</option>
             <option value="Courier New">Courier New</option>
+          </select>
+        </div>
+
+        value="Courier New">Courier New</option>
           </select>
         </div>
 
@@ -1345,58 +1369,6 @@ const secondaryButton = {
   gap: "8px",
 };
 
-
-const shareButton = {
-  background: "#7c3aed",
-  color: "white",
-  border: "none",
-  padding: "12px 18px",
-  borderRadius: "10px",
-  fontWeight: "bold",
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  gap: "8px",
-};
-
-const shareBox = {
-  background: "#0f172a",
-  border: "1px solid #334155",
-  padding: "20px",
-  borderRadius: "16px",
-  marginBottom: "25px",
-};
-
-const shareTitle = {
-  margin: "0 0 8px",
-  color: "#f59e0b",
-};
-
-const shareHelp = {
-  color: "#94a3b8",
-  lineHeight: "1.6",
-  marginBottom: "16px",
-};
-
-const shareSendButton = {
-  background: "#7c3aed",
-  color: "white",
-  border: "none",
-  padding: "12px 16px",
-  borderRadius: "10px",
-  fontWeight: "bold",
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  gap: "8px",
-};
-
-const shareStatusStyle = {
-  color: "#22c55e",
-  marginTop: "12px",
-  fontWeight: "bold",
-};
-
 const deleteButton = {
   background: "#dc2626",
   color: "white",
@@ -1424,15 +1396,3 @@ const dashboardButton = {
 };
 
 export default Editor;
-
-/*
-ENHANCEMENT NOTES ADDED:
-- Undo / Redo
-- Numbered List
-- H2 / H3
-- Block Quote
-- Clear Formatting
-- Clean Spaces
-
-Add the corresponding TipTap extensions and toolbar buttons where your existing toolbar is rendered.
-*/
