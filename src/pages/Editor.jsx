@@ -71,6 +71,8 @@ function Editor() {
   const [bibleResult, setBibleResult] = useState("");
   const [bibleLoading, setBibleLoading] = useState(false);
   const [bibleTranslation, setBibleTranslation] = useState("kjv");
+  const [showDetails, setShowDetails] = useState(false);
+  const [showBibleLookup, setShowBibleLookup] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -621,7 +623,7 @@ function Editor() {
         </div>
       </div>
 
-      <div style={cardStyle}>
+      <div style={compactCardStyle}>
         <input
           type="text"
           placeholder="Sermon Title"
@@ -633,6 +635,18 @@ function Editor() {
           style={titleInput}
         />
 
+        <div style={{display:"flex",gap:"10px",marginTop:"10px"}}>
+          <button style={secondaryButton} onClick={() => setShowDetails(!showDetails)}>
+            {showDetails ? "Hide Details" : "Show Details"}
+          </button>
+
+          <button style={secondaryButton} onClick={() => setShowBibleLookup(!showBibleLookup)}>
+            {showBibleLookup ? "Hide Bible Lookup" : "Bible Lookup"}
+          </button>
+        </div>
+
+        {showDetails && (
+        <>
         <select
           value={category}
           onChange={(e) => {
@@ -681,6 +695,8 @@ function Editor() {
           }}
           style={inputStyle}
         />
+        </>
+        )}
       </div>
 
       {false && (
@@ -727,6 +743,7 @@ function Editor() {
         </div>
       )}
 
+      {showBibleLookup && (
       <div style={bibleCard}>
         <div style={bibleHeader}>
           <BookOpen size={20} />
@@ -765,6 +782,7 @@ function Editor() {
 
         {bibleResult && <pre style={bibleResultBox}>{bibleResult}</pre>}
       </div>
+      )}
 
       <div style={editorCard}>
         <div style={toolbarStyle}>
@@ -1045,6 +1063,14 @@ const topBarStyle = {
 const headingStyle = { margin: 0, fontSize: "48px", lineHeight: "1.1" };
 const subtitleStyle = { color: "#94a3b8", marginTop: "10px" };
 const saveStatusStyle = { color: "#f59e0b", fontSize: "14px", marginTop: "5px" };
+
+const compactCardStyle = {
+  background: "#0f172a",
+  padding: "15px",
+  borderRadius: "16px",
+  border: "1px solid #1e293b",
+  marginBottom: "15px",
+};
 
 const cardStyle = {
   background: "#0f172a",
