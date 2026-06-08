@@ -86,6 +86,7 @@ function Editor() {
       TextAlign.configure({ types: ["heading", "paragraph"] }),
     ],
     content: "",
+    editable: true,
     onUpdate: () => setSaveStatus("Unsaved changes"),
   });
 
@@ -906,11 +907,16 @@ function Editor() {
           </select>
         </div>
 
-        <EditorContent
-          editor={editor}
-          className="sermon-editor"
-          style={editorContentStyle}
-        />
+        <div
+          style={editorShellStyle}
+          onClick={() => editor?.chain().focus().run()}
+        >
+          <EditorContent
+            editor={editor}
+            className="sermon-editor"
+            style={editorContentStyle}
+          />
+        </div>
       </div>
     </div>
   );
@@ -1070,17 +1076,16 @@ const editorCard = {
   background: "#0f172a",
   borderRadius: "16px",
   border: "1px solid #1e293b",
-  overflow: "hidden",
-  margin: "18px 32px 32px",
+  overflow: "visible",
+  margin: "12px 32px 32px",
 };
 
 const toolbarStyle = {
-  position: "sticky",
-  top: "86px",
-  zIndex: 40,
+  position: "relative",
+  zIndex: 5,
   display: "flex",
   gap: "8px",
-  padding: "12px",
+  padding: "10px 12px",
   borderBottom: "1px solid #1e293b",
   background: "#111827",
   flexWrap: "wrap",
@@ -1174,8 +1179,13 @@ const colorInput = {
   cursor: "pointer",
 };
 
+const editorShellStyle = {
+  background: "#020617",
+  cursor: "text",
+};
+
 const editorContentStyle = {
-  minHeight: "650px",
+  minHeight: "680px",
   background: "#020617",
   color: "white",
   fontSize: "17px",
