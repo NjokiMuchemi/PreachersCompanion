@@ -763,7 +763,11 @@ function Editor() {
           </button>
         </div>
 
-        {bibleResult && <pre style={bible<div style={toolbarStyle}>
+        {bibleResult && <pre style={bibleResultBox}>{bibleResult}</pre>}
+      </div>
+
+      <div style={editorCard}>
+        <div style={toolbarStyle}>
           <button
             title="Undo"
             style={toolButton}
@@ -1009,10 +1013,6 @@ function Editor() {
             <option value="Times New Roman">Times New Roman</option>
             <option value="Verdana">Verdana</option>
             <option value="Courier New">Courier New</option>
-          </select>
-        </div>
-
-        value="Courier New">Courier New</option>
           </select>
         </div>
 
