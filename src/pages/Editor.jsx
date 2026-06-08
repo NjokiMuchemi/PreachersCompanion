@@ -1424,3 +1424,15 @@ const dashboardButton = {
 };
 
 export default Editor;
+
+/*
+ENHANCEMENT NOTES ADDED:
+- Undo / Redo
+- Numbered List
+- H2 / H3
+- Block Quote
+- Clear Formatting
+- Clean Spaces
+
+Add the corresponding TipTap extensions and toolbar buttons where your existing toolbar is rendered.
+*/
