@@ -23,6 +23,7 @@ function Dashboard() {
   const [viewMode, setViewMode] = useState("grid");
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedSermonId, setSelectedSermonId] = useState(null);
+  const [previewWidth, setPreviewWidth] = useState("320px");
 
   const navigate = useNavigate();
 
@@ -332,6 +333,8 @@ function Dashboard() {
         {viewMode === "preview" ? (
           <PreviewLayout
             sermons={filteredSermons}
+            previewWidth={previewWidth}
+            setPreviewWidth={setPreviewWidth}
             selectedSermon={selectedSermon}
             selectedSermonId={selectedSermon?.id}
             setSelectedSermonId={setSelectedSermonId}
@@ -403,6 +406,8 @@ function Dashboard() {
 
 function PreviewLayout({
   sermons,
+  previewWidth,
+  setPreviewWidth,
   selectedSermon,
   selectedSermonId,
   setSelectedSermonId,
@@ -417,7 +422,27 @@ function PreviewLayout({
   }
 
   return (
-    <div style={previewLayoutStyle}>
+    <>
+      <div style={previewResizeControls}>
+        <button style={smallButton} onClick={() => setPreviewWidth("250px")}>
+          Narrow
+        </button>
+
+        <button style={smallButton} onClick={() => setPreviewWidth("320px")}>
+          Normal
+        </button>
+
+        <button style={smallButton} onClick={() => setPreviewWidth("450px")}>
+          Wide
+        </button>
+      </div>
+
+      <div
+        style={{
+          ...previewLayoutStyle,
+          gridTemplateColumns: `${previewWidth} 1fr`,
+        }}
+      >
       <div style={previewListStyle}>
         <h3 style={previewListHeading}>Sermon List</h3>
 
@@ -521,6 +546,7 @@ function PreviewLayout({
         )}
       </div>
     </div>
+    </>
   );
 }
 
@@ -898,6 +924,13 @@ const previewLayoutStyle = {
   gridTemplateColumns: "320px 1fr",
   gap: "20px",
   minHeight: "620px",
+};
+
+const previewResizeControls = {
+  display: "flex",
+  gap: "10px",
+  marginBottom: "15px",
+  flexWrap: "wrap",
 };
 
 const previewListStyle = {
