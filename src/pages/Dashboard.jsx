@@ -11,10 +11,6 @@ import {
   LayoutGrid,
   List,
   Edit3,
-  Mail,
-  Eye,
-  Copy,
-  X,
 } from "lucide-react";
 
 import { Link, useNavigate } from "react-router-dom";
@@ -26,8 +22,8 @@ function Dashboard() {
   const [activeTab, setActiveTab] = useState("all");
   const [viewMode, setViewMode] = useState("grid");
   const [isAdmin, setIsAdmin] = useState(false);
-  const [sharedSermons, setSharedSermons] = useState([]);
-  const [selectedShare, setSelectedShare] = useState(null);
+  const [selectedSermonId, setSelectedSermonId] = useState(null);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -43,6 +39,7 @@ function Dashboard() {
       navigate("/");
       return;
     }
+
     const { data: adminData } = await supabase
       .from("admin_users")
       .select("id")
@@ -50,6 +47,7 @@ function Dashboard() {
       .single();
 
     setIsAdmin(!!adminData);
+
     const { data, error } = await supabase
       .from("sermons")
       .select("*")
@@ -62,96 +60,6 @@ function Dashboard() {
     }
 
     setSermons(data || []);
-    await fetchSharedSermons(user.id);
-  }
-
-  async function fetchSharedSermons(userId) {
-    const { data, error } = await supabase
-      .from("sermon_shares")
-      .select("id,status,created_at,sender_id,sermon_id,sermons(*)")
-      .eq("recipient_id", userId)
-      .eq("status", "pending")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error(error.message);
-      setSharedSermons([]);
-      return;
-    }
-
-    setSharedSermons(data || []);
-  }
-
-  async function saveSharedSermon(share) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      navigate("/");
-      return;
-    }
-
-    const sharedSermon = share.sermons;
-
-    if (!sharedSermon) {
-      alert("Shared sermon could not be found.");
-      return;
-    }
-
-    const { error: insertError } = await supabase.from("sermons").insert([
-      {
-        user_id: user.id,
-        title: `${sharedSermon.title || "Shared Sermon"} (Shared Copy)`,
-        category: sharedSermon.category || "Shared Sermons",
-        scripture: sharedSermon.scripture || "",
-        tags: Array.isArray(sharedSermon.tags) ? sharedSermon.tags : [],
-        content: sharedSermon.content || "",
-        is_favorite: false,
-        is_deleted: false,
-      },
-    ]);
-
-    if (insertError) {
-      alert(insertError.message);
-      return;
-    }
-
-    const { error: updateError } = await supabase
-      .from("sermon_shares")
-      .update({ status: "accepted" })
-      .eq("id", share.id);
-
-    if (updateError) {
-      alert(updateError.message);
-      return;
-    }
-
-    alert("Shared sermon saved to your sermons.");
-    await fetchSermons();
-  }
-
-  async function discardSharedSermon(share) {
-    const confirmDiscard = window.confirm("Discard this shared sermon?");
-    if (!confirmDiscard) return;
-
-    const { error } = await supabase
-      .from("sermon_shares")
-      .update({ status: "discarded" })
-      .eq("id", share.id);
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    setSelectedShare(null);
-    await fetchSermons();
-  }
-
-  function getPlainPreview(html) {
-    const text = String(html || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    return text || "No preview available.";
   }
 
   async function renameCategory(oldCategory) {
@@ -178,6 +86,17 @@ function Dashboard() {
 
     if (!user) return;
 
+    const affectedSermons = sermons.filter(
+      (sermon) => (sermon.category || "Uncategorized") === oldCategory
+    );
+
+    const affectedIds = affectedSermons.map((sermon) => sermon.id);
+
+    if (affectedIds.length === 0) {
+      alert("No sermons found in this category.");
+      return;
+    }
+
     const { error } = await supabase
       .from("sermons")
       .update({
@@ -185,7 +104,7 @@ function Dashboard() {
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", user.id)
-      .eq("category", oldCategory);
+      .in("id", affectedIds);
 
     if (error) {
       alert(error.message);
@@ -194,7 +113,7 @@ function Dashboard() {
 
     setSermons((current) =>
       current.map((sermon) =>
-        sermon.category === oldCategory
+        affectedIds.includes(sermon.id)
           ? { ...sermon, category: cleanCategory }
           : sermon
       )
@@ -202,7 +121,7 @@ function Dashboard() {
 
     await fetchSermons();
 
-    alert(`Category renamed successfully.`);
+    alert(`Category renamed to "${cleanCategory}" successfully.`);
   }
 
   async function logout() {
@@ -211,33 +130,48 @@ function Dashboard() {
   }
 
   async function toggleFavorite(sermon) {
-    await supabase
+    const { error } = await supabase
       .from("sermons")
       .update({ is_favorite: !sermon.is_favorite })
       .eq("id", sermon.id);
 
-    fetchSermons();
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    await fetchSermons();
   }
 
   async function moveToTrash(sermon) {
     const confirmTrash = window.confirm("Move this sermon to Trash?");
     if (!confirmTrash) return;
 
-    await supabase
+    const { error } = await supabase
       .from("sermons")
       .update({ is_deleted: true })
       .eq("id", sermon.id);
 
-    fetchSermons();
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    await fetchSermons();
   }
 
   async function restoreSermon(sermon) {
-    await supabase
+    const { error } = await supabase
       .from("sermons")
       .update({ is_deleted: false })
       .eq("id", sermon.id);
 
-    fetchSermons();
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    await fetchSermons();
   }
 
   let displayedSermons = sermons;
@@ -260,12 +194,14 @@ function Dashboard() {
 
   const filteredSermons = displayedSermons.filter((sermon) => {
     const search = searchTerm.toLowerCase();
+    const tagsText = Array.isArray(sermon.tags) ? sermon.tags.join(" ") : "";
 
     return (
       sermon.title?.toLowerCase().includes(search) ||
       sermon.category?.toLowerCase().includes(search) ||
       sermon.scripture?.toLowerCase().includes(search) ||
-      sermon.tags?.join(" ").toLowerCase().includes(search)
+      sermon.content?.toLowerCase().includes(search) ||
+      tagsText.toLowerCase().includes(search)
     );
   });
 
@@ -280,22 +216,29 @@ function Dashboard() {
     return groups;
   }, {});
 
+  const selectedSermon =
+    filteredSermons.find((sermon) => sermon.id === selectedSermonId) ||
+    filteredSermons[0];
+
   return (
     <div style={pageStyle}>
       <aside style={sidebarStyle}>
         <div style={brandBox}>
           <h2 style={brandTitle}>PREACHER&apos;S COMPANION</h2>
           <p style={brandTagline}>From Revelation to Proclamation</p>
-          <p style={brandScripture}>
-            He who has my word, let him speak my word faithfully. Jer 23:28
+          <p style={brandVerse}>
+            He who has my word, let him speak my word faithfully.
+            <br />
+            Jer. 23:28
           </p>
-          <p style={brandPowered}>
-            Powered by Nebkona Investors Ltd<br />
+          <p style={poweredBy}>
+            Powered by Nebkona Investors Ltd
+            <br />
             Technologies Division @2026
           </p>
         </div>
 
-        <nav style={{ marginTop: "40px" }}>
+        <nav style={{ marginTop: "35px" }}>
           <p style={getNavStyle(activeTab === "all")} onClick={() => setActiveTab("all")}>
             All Sermons
           </p>
@@ -316,11 +259,13 @@ function Dashboard() {
             <Settings size={16} />
             Settings
           </p>
-{isAdmin && (
-  <p style={getNavStyle(false)} onClick={() => navigate("/admin")}>
-    Admin
-  </p>
-)}
+
+          {isAdmin && (
+            <p style={getNavStyle(false)} onClick={() => navigate("/admin")}>
+              Admin
+            </p>
+          )}
+
           <p style={logoutNavStyle} onClick={logout}>
             <LogOut size={16} />
             Logout
@@ -343,6 +288,7 @@ function Dashboard() {
           <div style={topActions}>
             <div style={viewToggle}>
               <button
+                title="Grid view"
                 style={viewMode === "grid" ? activeViewButton : viewButton}
                 onClick={() => setViewMode("grid")}
               >
@@ -350,10 +296,19 @@ function Dashboard() {
               </button>
 
               <button
+                title="List view"
                 style={viewMode === "list" ? activeViewButton : viewButton}
                 onClick={() => setViewMode("list")}
               >
                 <List size={18} />
+              </button>
+
+              <button
+                title="Preview view"
+                style={viewMode === "preview" ? activeViewButton : viewButton}
+                onClick={() => setViewMode("preview")}
+              >
+                Preview
               </button>
             </div>
 
@@ -367,117 +322,26 @@ function Dashboard() {
         <div style={searchBoxStyle}>
           <Search size={20} />
           <input
-            placeholder="Search sermons, scriptures, tags or categories..."
+            placeholder="Search sermons, scriptures, categories or tags..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={searchInputStyle}
           />
         </div>
 
-        {sharedSermons.length > 0 && (
-          <div style={sharedSection}>
-            <h2 style={sharedHeading}>
-              <Mail size={20} />
-              Shared With Me ({sharedSermons.length})
-            </h2>
-
-            <div style={sharedList}>
-              {sharedSermons.map((share) => {
-                const sharedSermon = share.sermons;
-
-                return (
-                  <div key={share.id} style={sharedCard}>
-                    <div style={{ flex: 1 }}>
-                      <strong>
-                        {sharedSermon?.title || "Untitled Shared Sermon"}
-                      </strong>
-
-                      <p style={mutedText}>
-                        {sharedSermon?.scripture || "No scripture listed"}
-                      </p>
-
-                      <p style={sharedDate}>
-                        Shared on{" "}
-                        {share.created_at
-                          ? new Date(share.created_at).toLocaleDateString()
-                          : "-"}
-                      </p>
-                    </div>
-
-                    <div style={sharedActions}>
-                      <button
-                        style={smallButton}
-                        onClick={() => setSelectedShare(share)}
-                      >
-                        <Eye size={16} />
-                        Open
-                      </button>
-
-                      <button
-                        style={saveSharedButton}
-                        onClick={() => saveSharedSermon(share)}
-                      >
-                        <Copy size={16} />
-                        Save
-                      </button>
-
-                      <button
-                        style={trashButton}
-                        onClick={() => discardSharedSermon(share)}
-                      >
-                        <X size={16} />
-                        Discard
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {selectedShare && (
-          <div style={previewOverlay}>
-            <div style={previewCard}>
-              <button
-                style={previewClose}
-                onClick={() => setSelectedShare(null)}
-              >
-                <X size={18} />
-              </button>
-
-              <h2>{selectedShare.sermons?.title || "Shared Sermon"}</h2>
-
-              <p style={mutedText}>
-                {selectedShare.sermons?.scripture || "No scripture listed"}
-              </p>
-
-              <div style={previewContent}>
-                {getPlainPreview(selectedShare.sermons?.content)}
-              </div>
-
-              <div style={sharedActions}>
-                <button
-                  style={saveSharedButton}
-                  onClick={() => saveSharedSermon(selectedShare)}
-                >
-                  <Copy size={16} />
-                  Save to My Sermons
-                </button>
-
-                <button
-                  style={trashButton}
-                  onClick={() => discardSharedSermon(selectedShare)}
-                >
-                  <X size={16} />
-                  Discard
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === "categories" ? (
+        {viewMode === "preview" ? (
+          <PreviewLayout
+            sermons={filteredSermons}
+            selectedSermon={selectedSermon}
+            selectedSermonId={selectedSermon?.id}
+            setSelectedSermonId={setSelectedSermonId}
+            activeTab={activeTab}
+            navigate={navigate}
+            toggleFavorite={toggleFavorite}
+            moveToTrash={moveToTrash}
+            restoreSermon={restoreSermon}
+          />
+        ) : activeTab === "categories" ? (
           Object.keys(groupedByCategory).length > 0 ? (
             Object.keys(groupedByCategory).map((category) => (
               <div key={category} style={{ marginBottom: "35px" }}>
@@ -537,6 +401,129 @@ function Dashboard() {
   );
 }
 
+function PreviewLayout({
+  sermons,
+  selectedSermon,
+  selectedSermonId,
+  setSelectedSermonId,
+  activeTab,
+  navigate,
+  toggleFavorite,
+  moveToTrash,
+  restoreSermon,
+}) {
+  if (!sermons.length) {
+    return <p style={emptyText}>No sermons found.</p>;
+  }
+
+  return (
+    <div style={previewLayoutStyle}>
+      <div style={previewListStyle}>
+        <h3 style={previewListHeading}>Sermon List</h3>
+
+        {sermons.map((sermon) => (
+          <div
+            key={sermon.id}
+            style={
+              sermon.id === selectedSermonId
+                ? activePreviewItemStyle
+                : previewItemStyle
+            }
+            onClick={() => setSelectedSermonId(sermon.id)}
+          >
+            <strong>{sermon.title || "Untitled Sermon"}</strong>
+            <p style={previewItemMeta}>{sermon.category || "Uncategorized"}</p>
+            <p style={previewItemMeta}>{sermon.scripture || "-"}</p>
+          </div>
+        ))}
+      </div>
+
+      <div style={previewDetailStyle}>
+        {selectedSermon ? (
+          <>
+            <BookOpen color="#f59e0b" size={34} />
+
+            <h2 style={previewTitleStyle}>
+              {selectedSermon.title || "Untitled Sermon"}
+            </h2>
+
+            <div style={metadataRowStyle}>
+              <span style={metadataBadge}>Category: {selectedSermon.category || "Uncategorized"}</span>
+              <span style={metadataBadge}>Scripture: {selectedSermon.scripture || "-"}</span>
+            </div>
+
+            {Array.isArray(selectedSermon.tags) && selectedSermon.tags.length > 0 && (
+              <div style={tagRowStyle}>
+                {selectedSermon.tags.map((tag) => (
+                  <span key={tag} style={tagBadgeStyle}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div style={buttonRow}>
+              {activeTab !== "trash" ? (
+                <>
+                  <button
+                    style={smallButton}
+                    onClick={() => navigate(`/editor/${selectedSermon.id}`)}
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    style={preachButton}
+                    onClick={() => navigate(`/preach/${selectedSermon.id}`)}
+                  >
+                    Preach
+                  </button>
+
+                  <button
+                    style={favoriteButton}
+                    onClick={() => toggleFavorite(selectedSermon)}
+                  >
+                    <Star
+                      size={16}
+                      fill={selectedSermon.is_favorite ? "#f59e0b" : "none"}
+                    />
+                  </button>
+
+                  <button
+                    style={trashButton}
+                    onClick={() => moveToTrash(selectedSermon)}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </>
+              ) : (
+                <button
+                  style={restoreButton}
+                  onClick={() => restoreSermon(selectedSermon)}
+                >
+                  <RotateCcw size={16} />
+                  Restore
+                </button>
+              )}
+            </div>
+
+            <div
+              style={sermonPreviewContentStyle}
+              dangerouslySetInnerHTML={{
+                __html:
+                  selectedSermon.content ||
+                  "<p>No sermon content available.</p>",
+              }}
+            />
+          </>
+        ) : (
+          <p style={emptyText}>Select a sermon to view details.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SermonCard({
   sermon,
   viewMode,
@@ -562,9 +549,9 @@ function SermonCard({
         <p style={{ color: "#cbd5e1" }}>{sermon.scripture}</p>
 
         {Array.isArray(sermon.tags) && sermon.tags.length > 0 && (
-          <div style={tagRow}>
-            {sermon.tags.slice(0, 4).map((tag) => (
-              <span key={tag} style={tagPill}>
+          <div style={tagRowStyle}>
+            {sermon.tags.map((tag) => (
+              <span key={tag} style={tagBadgeStyle}>
                 {tag}
               </span>
             ))}
@@ -630,129 +617,6 @@ function SermonCard({
   );
 }
 
-
-const sharedSection = {
-  background: "#0f172a",
-  border: "1px solid #334155",
-  borderRadius: "16px",
-  padding: "20px",
-  marginBottom: "30px",
-};
-
-const sharedHeading = {
-  color: "#f59e0b",
-  display: "flex",
-  alignItems: "center",
-  gap: "8px",
-  marginTop: 0,
-};
-
-const sharedList = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "12px",
-};
-
-const sharedCard = {
-  background: "#020617",
-  border: "1px solid #334155",
-  borderRadius: "12px",
-  padding: "14px",
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: "14px",
-  flexWrap: "wrap",
-};
-
-const sharedActions = {
-  display: "flex",
-  gap: "8px",
-  flexWrap: "wrap",
-};
-
-const sharedDate = {
-  color: "#64748b",
-  fontSize: "13px",
-  margin: "6px 0 0",
-};
-
-const saveSharedButton = {
-  background: "#16a34a",
-  color: "white",
-  border: "none",
-  padding: "8px 12px",
-  borderRadius: "8px",
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  gap: "6px",
-  fontWeight: "bold",
-};
-
-const previewOverlay = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(2, 6, 23, 0.85)",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  zIndex: 1000,
-  padding: "20px",
-};
-
-const previewCard = {
-  background: "#0f172a",
-  border: "1px solid #334155",
-  borderRadius: "16px",
-  padding: "25px",
-  maxWidth: "760px",
-  width: "100%",
-  maxHeight: "80vh",
-  overflow: "auto",
-  position: "relative",
-};
-
-const previewClose = {
-  position: "absolute",
-  top: "14px",
-  right: "14px",
-  background: "#1e293b",
-  color: "white",
-  border: "1px solid #334155",
-  borderRadius: "8px",
-  padding: "8px",
-  cursor: "pointer",
-};
-
-const previewContent = {
-  background: "#020617",
-  border: "1px solid #334155",
-  borderRadius: "12px",
-  padding: "16px",
-  color: "#cbd5e1",
-  lineHeight: "1.7",
-  margin: "18px 0",
-  whiteSpace: "pre-wrap",
-};
-
-const tagRow = {
-  display: "flex",
-  gap: "6px",
-  flexWrap: "wrap",
-  marginTop: "10px",
-};
-
-const tagPill = {
-  background: "#1e293b",
-  color: "#f59e0b",
-  border: "1px solid #334155",
-  borderRadius: "999px",
-  padding: "4px 8px",
-  fontSize: "12px",
-  fontWeight: "bold",
-};
-
 const pageStyle = {
   minHeight: "100vh",
   display: "flex",
@@ -762,51 +626,47 @@ const pageStyle = {
 };
 
 const sidebarStyle = {
-  width: "260px",
+  width: "280px",
   background: "#0f172a",
   padding: "30px",
   borderRight: "1px solid #1e293b",
 };
 
 const brandBox = {
-  background: "#020617",
-  border: "1px solid #334155",
-  borderRadius: "16px",
-  padding: "18px",
+  borderBottom: "1px solid #334155",
+  paddingBottom: "20px",
 };
 
 const brandTitle = {
   color: "#f59e0b",
-  fontSize: "22px",
+  margin: 0,
+  fontSize: "20px",
   lineHeight: "1.1",
-  margin: "0 0 10px",
   fontWeight: "900",
-  letterSpacing: "0.5px",
 };
 
 const brandTagline = {
   color: "white",
-  fontSize: "14px",
+  fontSize: "13px",
   fontWeight: "bold",
-  margin: "0 0 10px",
+  marginTop: "10px",
 };
 
-const brandScripture = {
+const brandVerse = {
   color: "#cbd5e1",
-  fontSize: "13px",
+  fontSize: "12px",
   lineHeight: "1.5",
-  margin: "0 0 14px",
   fontStyle: "italic",
 };
 
-const brandPowered = {
-  color: "#94a3b8",
-  fontSize: "12px",
+const poweredBy = {
+  color: "#64748b",
+  fontSize: "11px",
   lineHeight: "1.5",
-  margin: 0,
+  marginTop: "12px",
 };
 
-const mainStyle = { flex: 1, padding: "40px" };
+const mainStyle = { flex: 1, padding: "40px", overflow: "hidden" };
 const mutedText = { color: "#94a3b8" };
 
 const getNavStyle = (active) => ({
@@ -867,6 +727,7 @@ const activeViewButton = {
   ...viewButton,
   background: "#f59e0b",
   color: "#000",
+  fontWeight: "bold",
 };
 
 const newButtonStyle = {
@@ -1013,6 +874,107 @@ const restoreButton = {
   display: "flex",
   alignItems: "center",
   gap: "6px",
+};
+
+const tagRowStyle = {
+  display: "flex",
+  gap: "8px",
+  flexWrap: "wrap",
+  marginTop: "10px",
+};
+
+const tagBadgeStyle = {
+  background: "#1e293b",
+  border: "1px solid #334155",
+  color: "#f59e0b",
+  padding: "6px 10px",
+  borderRadius: "999px",
+  fontWeight: "bold",
+  fontSize: "12px",
+};
+
+const previewLayoutStyle = {
+  display: "grid",
+  gridTemplateColumns: "320px 1fr",
+  gap: "20px",
+  minHeight: "620px",
+};
+
+const previewListStyle = {
+  background: "#0f172a",
+  border: "1px solid #1e293b",
+  borderRadius: "16px",
+  padding: "15px",
+  maxHeight: "720px",
+  overflowY: "auto",
+};
+
+const previewListHeading = {
+  color: "#f59e0b",
+  marginTop: 0,
+};
+
+const previewItemStyle = {
+  padding: "14px",
+  borderRadius: "12px",
+  border: "1px solid #1e293b",
+  marginBottom: "10px",
+  cursor: "pointer",
+  background: "#020617",
+};
+
+const activePreviewItemStyle = {
+  ...previewItemStyle,
+  background: "#1e293b",
+  border: "1px solid #f59e0b",
+};
+
+const previewItemMeta = {
+  color: "#94a3b8",
+  margin: "6px 0 0",
+  fontSize: "13px",
+};
+
+const previewDetailStyle = {
+  background: "#0f172a",
+  border: "1px solid #1e293b",
+  borderRadius: "16px",
+  padding: "25px",
+  maxHeight: "720px",
+  overflowY: "auto",
+};
+
+const previewTitleStyle = {
+  fontSize: "34px",
+  lineHeight: "1.15",
+  marginBottom: "15px",
+};
+
+const metadataRowStyle = {
+  display: "flex",
+  gap: "10px",
+  flexWrap: "wrap",
+  marginBottom: "10px",
+};
+
+const metadataBadge = {
+  background: "#020617",
+  border: "1px solid #334155",
+  color: "#cbd5e1",
+  padding: "8px 10px",
+  borderRadius: "8px",
+  fontSize: "14px",
+};
+
+const sermonPreviewContentStyle = {
+  background: "#020617",
+  border: "1px solid #334155",
+  borderRadius: "12px",
+  padding: "20px",
+  marginTop: "20px",
+  color: "#e5e7eb",
+  lineHeight: "1.8",
+  fontSize: "16px",
 };
 
 const emptyText = {
