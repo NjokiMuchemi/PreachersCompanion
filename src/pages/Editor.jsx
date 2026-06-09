@@ -156,7 +156,7 @@ function Editor() {
     const handleBeforeUnload = (e) => {
       if (hasUnsavedChanges) {
         e.preventDefault();
-        e.returnValue = "";
+        e.returnValue = "You have unsaved changes. Please save before leaving.";
       }
     };
 
@@ -168,7 +168,7 @@ function Editor() {
   }, [hasUnsavedChanges]);
 
   function markUnsaved() {
-    markUnsaved();
+    setSaveStatus("Unsaved changes");
     setHasUnsavedChanges(true);
   }
 
@@ -246,8 +246,7 @@ function Editor() {
       return;
     }
 
-    setSaveStatus("Auto-saved");
-    setHasUnsavedChanges(false);
+    setSaveStatus("Auto-saved. Please click Save Sermon before leaving.");
   }
 
   async function lookupBibleVerse() {
@@ -667,6 +666,9 @@ function Editor() {
                   await handleSave();
                   return;
                 }
+
+                navigate("/dashboard");
+                return;
               }
 
               navigate("/dashboard");
@@ -704,7 +706,7 @@ function Editor() {
 
           <button style={primaryButton} onClick={handleSave}>
             <Save size={18} />
-            "Save Sermon"
+            Save Sermon
           </button>
         </div>
       </div>
