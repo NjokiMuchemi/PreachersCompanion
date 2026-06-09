@@ -295,6 +295,39 @@ function Dashboard() {
             <LogOut size={16} />
             Logout
           </p>
+
+          {storageInfo && (
+            <div style={sidebarStorageCardStyle}>
+              <div style={sidebarStorageHeaderStyle}>
+                <span>Storage</span>
+                <strong>{storageInfo.used_mb} / {storageInfo.limit_mb} MB</strong>
+              </div>
+
+              <div style={sidebarStorageBarOuter}>
+                <div
+                  style={{
+                    ...sidebarStorageBarInner,
+                    width: `${Math.min(storageInfo.percent_used || 0, 100)}%`,
+                    background:
+                      (storageInfo.percent_used || 0) >= 90
+                        ? "#ef4444"
+                        : (storageInfo.percent_used || 0) >= 70
+                        ? "#d4a017"
+                        : "#86efac",
+                  }}
+                />
+              </div>
+
+              <p style={sidebarStorageTextStyle}>
+                {storageInfo.remaining_mb} MB left
+              </p>
+
+              <p style={sidebarStorageTextStyle}>
+                Approx. {storageInfo.approximate_sermons_remaining} sermons left
+              </p>
+            </div>
+          )}
+
         </nav>
       </aside>
 
@@ -771,5 +804,49 @@ const emptyText = {
   color: "#94a3b8",
   fontSize: "18px",
 };
+
+
+const sidebarStorageCardStyle = {
+  marginTop: "22px",
+  background: "#020617",
+  border: "1px solid rgba(134, 239, 172, 0.35)",
+  borderRadius: "14px",
+  padding: "12px",
+  color: "#e5e7eb",
+  boxShadow: "0 12px 35px rgba(0,0,0,0.25)",
+};
+
+const sidebarStorageHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "8px",
+  fontSize: "13px",
+  marginBottom: "10px",
+  color: "#d9f99d",
+};
+
+const sidebarStorageBarOuter = {
+  height: "8px",
+  background: "#0f172a",
+  borderRadius: "999px",
+  overflow: "hidden",
+  border: "1px solid #1e293b",
+  marginBottom: "8px",
+};
+
+const sidebarStorageBarInner = {
+  height: "100%",
+  borderRadius: "999px",
+  transition: "width 0.3s ease",
+};
+
+const sidebarStorageTextStyle = {
+  margin: "4px 0 0",
+  color: "#94a3b8",
+  fontSize: "12px",
+  lineHeight: "1.35",
+};
+
 
 export default Dashboard;

@@ -160,7 +160,7 @@ function Editor() {
     const handleBeforeUnload = (e) => {
       if (hasUnsavedChanges) {
         e.preventDefault();
-        e.returnValue = "";
+        e.returnValue = "You have unsaved changes. Please save before leaving.";
       }
     };
 
@@ -469,7 +469,11 @@ Admin contact: njokire@gmail.com`,
     markUnsaved();
   }
 
-  async function handleSave() {
+  async function saveAndLeaveDashboard() {
+    await handleSave(true);
+  }
+
+  async function handleSave(leaveAfterSave = false) {
     const content = editor?.getHTML() || "";
 
     const {
@@ -507,8 +511,12 @@ Admin contact: njokire@gmail.com`,
 
       setSaveStatus("Saved");
       setHasUnsavedChanges(false);
-      alert("Sermon saved successfully!");
-      navigate("/dashboard");
+      if (leaveAfterSave) {
+        navigate("/dashboard");
+        return;
+      }
+
+      setModal({ icon: "✅", title: "Sermon Saved", message: "Your sermon has been saved successfully." });
       return;
     }
 
@@ -530,9 +538,12 @@ Admin contact: njokire@gmail.com`,
 
     setSaveStatus("Saved");
     setHasUnsavedChanges(false);
-    setSaveStatus("Saved");
-    setHasUnsavedChanges(false);
-    navigate("/dashboard");
+    if (leaveAfterSave) {
+      navigate("/dashboard");
+      return;
+    }
+
+    setModal({ icon: "✅", title: "Sermon Saved", message: "Your sermon has been saved successfully." });
   }
 
   function handleDelete() {
@@ -726,7 +737,7 @@ Admin contact: njokire@gmail.com`,
 
           <button style={primaryButton} onClick={handleSave}>
             <Save size={18} />
-            "Save Sermon"
+            Save Sermon
           </button>
         </div>
       </div>
@@ -994,7 +1005,7 @@ Admin contact: njokire@gmail.com`,
             <option value="Times New Roman">Times New Roman</option>
             <option value="Verdana">Verdana</option>
             <option value="Courier New">Courier New</option>
-</select>
+          </select>
 
           <select
             style={selectStyle}
@@ -1003,7 +1014,9 @@ Admin contact: njokire@gmail.com`,
             }
             defaultValue=""
           >
-            <option value="" disabled>Size</option>
+            <option value="" disabled>
+              Size
+            </option>
             <option value="8px">8</option>
             <option value="9px">9</option>
             <option value="10px">10</option>
@@ -1021,7 +1034,6 @@ Admin contact: njokire@gmail.com`,
             <option value="60px">60</option>
             <option value="72px">72</option>
           </select>
-
         </div>
 
         <EditorContent
@@ -1054,7 +1066,7 @@ Admin contact: njokire@gmail.com`,
           style={primaryButton}
           onClick={async () => {
             setUnsavedModalOpen(false);
-            await handleSave();
+            await saveAndLeaveDashboard();
           }}
         >
           Save Sermon
