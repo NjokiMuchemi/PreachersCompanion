@@ -15,6 +15,7 @@ import {
 
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import AppModal from "../components/AppModal";
 
 function Dashboard() {
   const [sermons, setSermons] = useState([]);
@@ -23,6 +24,7 @@ function Dashboard() {
   const [viewMode, setViewMode] = useState("grid");
   const [isAdmin, setIsAdmin] = useState(false);
   const [storageInfo, setStorageInfo] = useState(null);
+  const [trashModalSermon, setTrashModalSermon] = useState(null);
 
   const navigate = useNavigate();
 
@@ -165,14 +167,16 @@ function Dashboard() {
     await fetchSermons();
   }
 
-  async function moveToTrash(sermon) {
-    const confirmTrash = window.confirm("Move this sermon to Trash?");
-    if (!confirmTrash) return;
+  function moveToTrash(sermon) {
+    setTrashModalSermon(sermon);
+  }
 
+  async function confirmMoveToTrash() {
+    if (!trashModalSermon) return;
     const { error } = await supabase
       .from("sermons")
       .update({ is_deleted: true })
-      .eq("id", sermon.id);
+      .eq("id", trashModalSermon.id);
 
     if (error) {
       alert(error.message);
@@ -180,6 +184,7 @@ function Dashboard() {
     }
 
     await fetchSermons();
+    setTrashModalSermon(null);
   }
 
   async function restoreSermon(sermon) {
@@ -433,6 +438,25 @@ function Dashboard() {
           </div>
         )}
       </main>
+
+      <AppModal
+        open={!!trashModalSermon}
+        icon="🗑️"
+        title="Move Sermon to Trash?"
+        message={`Move "${trashModalSermon?.title || "this sermon"}" to Trash? You can restore it later from the Trash section.`}
+        onClose={() => setTrashModalSermon(null)}
+      >
+        <button style={deleteConfirmButtonStyle} onClick={confirmMoveToTrash}>
+          Move to Trash
+        </button>
+
+        <button
+          style={cancelModalButtonStyle}
+          onClick={() => setTrashModalSermon(null)}
+        >
+          Cancel
+        </button>
+      </AppModal>
     </div>
   );
 }
@@ -846,6 +870,28 @@ const sidebarStorageTextStyle = {
   color: "#94a3b8",
   fontSize: "12px",
   lineHeight: "1.35",
+};
+
+
+
+const deleteConfirmButtonStyle = {
+  background: "#dc2626",
+  color: "white",
+  border: "none",
+  padding: "12px 18px",
+  borderRadius: "10px",
+  fontWeight: "bold",
+  cursor: "pointer",
+};
+
+const cancelModalButtonStyle = {
+  background: "#1e293b",
+  color: "white",
+  border: "1px solid #334155",
+  padding: "12px 18px",
+  borderRadius: "10px",
+  fontWeight: "bold",
+  cursor: "pointer",
 };
 
 
