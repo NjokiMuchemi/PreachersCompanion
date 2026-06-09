@@ -41,8 +41,61 @@ import Color from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
 import FontFamily from "@tiptap/extension-font-family";
 import Image from "@tiptap/extension-image";
+import { Extension } from "@tiptap/core";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+
+
+const FontSize = Extension.create({
+  name: "fontSize",
+
+  addOptions() {
+    return {
+      types: ["textStyle"],
+    };
+  },
+
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types,
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: (element) => element.style.fontSize?.replace(/['"]+/g, ""),
+            renderHTML: (attributes) => {
+              if (!attributes.fontSize) {
+                return {};
+              }
+
+              return {
+                style: `font-size: ${attributes.fontSize}`,
+              };
+            },
+          },
+        },
+      },
+    ];
+  },
+
+  addCommands() {
+    return {
+      setFontSize:
+        (fontSize) =>
+        ({ chain }) => {
+          return chain().setMark("textStyle", { fontSize }).run();
+        },
+      unsetFontSize:
+        () =>
+        ({ chain }) => {
+          return chain()
+            .setMark("textStyle", { fontSize: null })
+            .removeEmptyTextStyle()
+            .run();
+        },
+    };
+  },
+});
 
 function Editor() {
   const { id } = useParams();
@@ -76,6 +129,7 @@ function Editor() {
       TextStyle,
       Color,
       FontFamily,
+      FontSize,
       Image,
       Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
@@ -106,7 +160,7 @@ function Editor() {
     const handleBeforeUnload = (e) => {
       if (hasUnsavedChanges) {
         e.preventDefault();
-        e.returnValue = "You have unsaved changes. Please save before leaving.";
+        e.returnValue = "";
       }
     };
 
@@ -453,6 +507,7 @@ Admin contact: njokire@gmail.com`,
 
       setSaveStatus("Saved");
       setHasUnsavedChanges(false);
+      alert("Sermon saved successfully!");
       navigate("/dashboard");
       return;
     }
@@ -473,6 +528,8 @@ Admin contact: njokire@gmail.com`,
       return;
     }
 
+    setSaveStatus("Saved");
+    setHasUnsavedChanges(false);
     setSaveStatus("Saved");
     setHasUnsavedChanges(false);
     navigate("/dashboard");
@@ -669,7 +726,7 @@ Admin contact: njokire@gmail.com`,
 
           <button style={primaryButton} onClick={handleSave}>
             <Save size={18} />
-            Save Sermon
+            "Save Sermon"
           </button>
         </div>
       </div>
@@ -937,7 +994,34 @@ Admin contact: njokire@gmail.com`,
             <option value="Times New Roman">Times New Roman</option>
             <option value="Verdana">Verdana</option>
             <option value="Courier New">Courier New</option>
+</select>
+
+          <select
+            style={selectStyle}
+            onChange={(e) =>
+              editor.chain().focus().setFontSize(e.target.value).run()
+            }
+            defaultValue=""
+          >
+            <option value="" disabled>Size</option>
+            <option value="8px">8</option>
+            <option value="9px">9</option>
+            <option value="10px">10</option>
+            <option value="11px">11</option>
+            <option value="12px">12</option>
+            <option value="14px">14</option>
+            <option value="16px">16</option>
+            <option value="18px">18</option>
+            <option value="20px">20</option>
+            <option value="24px">24</option>
+            <option value="28px">28</option>
+            <option value="32px">32</option>
+            <option value="36px">36</option>
+            <option value="48px">48</option>
+            <option value="60px">60</option>
+            <option value="72px">72</option>
           </select>
+
         </div>
 
         <EditorContent

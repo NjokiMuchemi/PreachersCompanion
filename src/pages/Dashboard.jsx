@@ -22,32 +22,14 @@ function Dashboard() {
   const [activeTab, setActiveTab] = useState("all");
   const [viewMode, setViewMode] = useState("grid");
   const [isAdmin, setIsAdmin] = useState(false);
-  const [storageInfo, setStorageInfo] = useState(null);
+  const [selectedSermonId, setSelectedSermonId] = useState(null);
+  const [previewWidth, setPreviewWidth] = useState("320px");
+
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchSermons();
   }, []);
-
-  async function loadStorageUsage(userId) {
-    try {
-      const response = await fetch("/api/user-storage-usage", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ userId }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setStorageInfo(data);
-      }
-    } catch (error) {
-      console.error("Could not load storage usage", error);
-    }
-  }
 
   async function fetchSermons() {
     const {
@@ -59,15 +41,14 @@ function Dashboard() {
       return;
     }
 
-    await loadStorageUsage(user.id);
-
-        const { data: adminData } = await supabase
+    const { data: adminData } = await supabase
       .from("admin_users")
       .select("id")
       .eq("id", user.id)
       .single();
 
     setIsAdmin(!!adminData);
+
     const { data, error } = await supabase
       .from("sermons")
       .select("*")
@@ -92,6 +73,8 @@ function Dashboard() {
 
     const cleanCategory = newCategory.trim();
 
+    if (cleanCategory === oldCategory) return;
+
     const confirmRename = window.confirm(
       `Rename all sermons in "${oldCategory}" to "${cleanCategory}"?`
     );
@@ -104,6 +87,17 @@ function Dashboard() {
 
     if (!user) return;
 
+    const affectedSermons = sermons.filter(
+      (sermon) => (sermon.category || "Uncategorized") === oldCategory
+    );
+
+    const affectedIds = affectedSermons.map((sermon) => sermon.id);
+
+    if (affectedIds.length === 0) {
+      alert("No sermons found in this category.");
+      return;
+    }
+
     const { error } = await supabase
       .from("sermons")
       .update({
@@ -111,14 +105,24 @@ function Dashboard() {
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", user.id)
-      .eq("category", oldCategory);
+      .in("id", affectedIds);
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    fetchSermons();
+    setSermons((current) =>
+      current.map((sermon) =>
+        affectedIds.includes(sermon.id)
+          ? { ...sermon, category: cleanCategory }
+          : sermon
+      )
+    );
+
+    await fetchSermons();
+
+    alert(`Category renamed to "${cleanCategory}" successfully.`);
   }
 
   async function logout() {
@@ -127,33 +131,48 @@ function Dashboard() {
   }
 
   async function toggleFavorite(sermon) {
-    await supabase
+    const { error } = await supabase
       .from("sermons")
       .update({ is_favorite: !sermon.is_favorite })
       .eq("id", sermon.id);
 
-    fetchSermons();
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    await fetchSermons();
   }
 
   async function moveToTrash(sermon) {
     const confirmTrash = window.confirm("Move this sermon to Trash?");
     if (!confirmTrash) return;
 
-    await supabase
+    const { error } = await supabase
       .from("sermons")
       .update({ is_deleted: true })
       .eq("id", sermon.id);
 
-    fetchSermons();
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    await fetchSermons();
   }
 
   async function restoreSermon(sermon) {
-    await supabase
+    const { error } = await supabase
       .from("sermons")
       .update({ is_deleted: false })
       .eq("id", sermon.id);
 
-    fetchSermons();
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    await fetchSermons();
   }
 
   let displayedSermons = sermons;
@@ -176,11 +195,14 @@ function Dashboard() {
 
   const filteredSermons = displayedSermons.filter((sermon) => {
     const search = searchTerm.toLowerCase();
+    const tagsText = Array.isArray(sermon.tags) ? sermon.tags.join(" ") : "";
 
     return (
       sermon.title?.toLowerCase().includes(search) ||
       sermon.category?.toLowerCase().includes(search) ||
-      sermon.scripture?.toLowerCase().includes(search)
+      sermon.scripture?.toLowerCase().includes(search) ||
+      sermon.content?.toLowerCase().includes(search) ||
+      tagsText.toLowerCase().includes(search)
     );
   });
 
@@ -195,13 +217,29 @@ function Dashboard() {
     return groups;
   }, {});
 
+  const selectedSermon =
+    filteredSermons.find((sermon) => sermon.id === selectedSermonId) ||
+    filteredSermons[0];
+
   return (
     <div style={pageStyle}>
       <aside style={sidebarStyle}>
-        <h2>Preacher&apos;s Companion</h2>
-        <p style={mutedText}>Sermon Workspace</p>
+        <div style={brandBox}>
+          <h2 style={brandTitle}>PREACHER&apos;S COMPANION</h2>
+          <p style={brandTagline}>From Revelation to Proclamation</p>
+          <p style={brandVerse}>
+            He who has my word, let him speak my word faithfully.
+            <br />
+            Jer. 23:28
+          </p>
+          <p style={poweredBy}>
+            Powered by Nebkona Investors Ltd
+            <br />
+            Technologies Division @2026
+          </p>
+        </div>
 
-        <nav style={{ marginTop: "40px" }}>
+        <nav style={{ marginTop: "35px" }}>
           <p style={getNavStyle(activeTab === "all")} onClick={() => setActiveTab("all")}>
             All Sermons
           </p>
@@ -222,15 +260,50 @@ function Dashboard() {
             <Settings size={16} />
             Settings
           </p>
-{isAdmin && (
-  <p style={getNavStyle(false)} onClick={() => navigate("/admin")}>
-    Admin
-  </p>
-)}
+
+          {isAdmin && (
+            <p style={getNavStyle(false)} onClick={() => navigate("/admin")}>
+              Admin
+            </p>
+          )}
+
           <p style={logoutNavStyle} onClick={logout}>
             <LogOut size={16} />
             Logout
           </p>
+
+          {storageInfo && (
+            <div style={sidebarStorageCardStyle}>
+              <div style={sidebarStorageHeaderStyle}>
+                <span>Storage</span>
+                <strong>{storageInfo.used_mb} / {storageInfo.limit_mb} MB</strong>
+              </div>
+
+              <div style={sidebarStorageBarOuter}>
+                <div
+                  style={{
+                    ...sidebarStorageBarInner,
+                    width: `${Math.min(storageInfo.percent_used || 0, 100)}%`,
+                    background:
+                      (storageInfo.percent_used || 0) >= 90
+                        ? "#ef4444"
+                        : (storageInfo.percent_used || 0) >= 70
+                        ? "#d4a017"
+                        : "#86efac",
+                  }}
+                />
+              </div>
+
+              <p style={sidebarStorageTextStyle}>
+                {storageInfo.remaining_mb} MB left
+              </p>
+
+              <p style={sidebarStorageTextStyle}>
+                Approx. {storageInfo.approximate_sermons_remaining} sermons left
+              </p>
+            </div>
+          )}
+
         </nav>
       </aside>
 
@@ -238,46 +311,7 @@ function Dashboard() {
         <div style={topBarStyle}>
           <div>
             <h1 style={headingStyle}>
-      
-        {storageInfo && (
-          <div style={storageCardStyle}>
-            <div style={storageHeaderStyle}>
-              <strong>Storage Usage</strong>
-              <span>{storageInfo.used_mb} MB / {storageInfo.limit_mb} MB</span>
-            </div>
-
-            <div style={storageBarOuter}>
-              <div
-                style={{
-                  ...storageBarInner,
-                  width: `${Math.min(storageInfo.percent_used || 0, 100)}%`,
-                  background:
-                    (storageInfo.percent_used || 0) >= 90
-                      ? "#b91c1c"
-                      : (storageInfo.percent_used || 0) >= 70
-                      ? "#d4a017"
-                      : "#86efac",
-                }}
-              />
-            </div>
-
-            <div style={storageDetailsStyle}>
-              <span>Remaining: {storageInfo.remaining_mb} MB</span>
-              <span>Approx. sermons left: {storageInfo.approximate_sermons_remaining}</span>
-              <span>Images: {storageInfo.image_storage_mb} MB</span>
-              <span>Sermons: {storageInfo.sermon_storage_mb} MB</span>
-            </div>
-
-            {(storageInfo.percent_used || 0) >= 90 && (
-              <p style={storageWarningStyle}>
-                You are nearing your storage limit. Delete unused sermons/images
-                or contact admin for additional quota: njokire@gmail.com
-              </p>
-            )}
-          </div>
-        )}
-
-        {activeTab === "all" && "My Sermons"}
+              {activeTab === "all" && "My Sermons"}
               {activeTab === "categories" && "Categories"}
               {activeTab === "favorites" && "Favorite Sermons"}
               {activeTab === "trash" && "Trash"}
@@ -288,6 +322,7 @@ function Dashboard() {
           <div style={topActions}>
             <div style={viewToggle}>
               <button
+                title="Grid view"
                 style={viewMode === "grid" ? activeViewButton : viewButton}
                 onClick={() => setViewMode("grid")}
               >
@@ -295,10 +330,19 @@ function Dashboard() {
               </button>
 
               <button
+                title="List view"
                 style={viewMode === "list" ? activeViewButton : viewButton}
                 onClick={() => setViewMode("list")}
               >
                 <List size={18} />
+              </button>
+
+              <button
+                title="Preview view"
+                style={viewMode === "preview" ? activeViewButton : viewButton}
+                onClick={() => setViewMode("preview")}
+              >
+                Preview
               </button>
             </div>
 
@@ -312,14 +356,28 @@ function Dashboard() {
         <div style={searchBoxStyle}>
           <Search size={20} />
           <input
-            placeholder="Search sermons, scriptures or categories..."
+            placeholder="Search sermons, scriptures, categories or tags..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={searchInputStyle}
           />
         </div>
 
-        {activeTab === "categories" ? (
+        {viewMode === "preview" ? (
+          <PreviewLayout
+            sermons={filteredSermons}
+            previewWidth={previewWidth}
+            setPreviewWidth={setPreviewWidth}
+            selectedSermon={selectedSermon}
+            selectedSermonId={selectedSermon?.id}
+            setSelectedSermonId={setSelectedSermonId}
+            activeTab={activeTab}
+            navigate={navigate}
+            toggleFavorite={toggleFavorite}
+            moveToTrash={moveToTrash}
+            restoreSermon={restoreSermon}
+          />
+        ) : activeTab === "categories" ? (
           Object.keys(groupedByCategory).length > 0 ? (
             Object.keys(groupedByCategory).map((category) => (
               <div key={category} style={{ marginBottom: "35px" }}>
@@ -379,6 +437,152 @@ function Dashboard() {
   );
 }
 
+function PreviewLayout({
+  sermons,
+  previewWidth,
+  setPreviewWidth,
+  selectedSermon,
+  selectedSermonId,
+  setSelectedSermonId,
+  activeTab,
+  navigate,
+  toggleFavorite,
+  moveToTrash,
+  restoreSermon,
+}) {
+  if (!sermons.length) {
+    return <p style={emptyText}>No sermons found.</p>;
+  }
+
+  return (
+    <>
+      <div style={previewResizeControls}>
+        <button style={smallButton} onClick={() => setPreviewWidth("250px")}>
+          Narrow
+        </button>
+
+        <button style={smallButton} onClick={() => setPreviewWidth("320px")}>
+          Normal
+        </button>
+
+        <button style={smallButton} onClick={() => setPreviewWidth("450px")}>
+          Wide
+        </button>
+      </div>
+
+      <div
+        style={{
+          ...previewLayoutStyle,
+          gridTemplateColumns: `${previewWidth} 1fr`,
+        }}
+      >
+      <div style={previewListStyle}>
+        <h3 style={previewListHeading}>Sermon List</h3>
+
+        {sermons.map((sermon) => (
+          <div
+            key={sermon.id}
+            style={
+              sermon.id === selectedSermonId
+                ? activePreviewItemStyle
+                : previewItemStyle
+            }
+            onClick={() => setSelectedSermonId(sermon.id)}
+          >
+            <strong>{sermon.title || "Untitled Sermon"}</strong>
+            <p style={previewItemMeta}>{sermon.category || "Uncategorized"}</p>
+            <p style={previewItemMeta}>{sermon.scripture || "-"}</p>
+          </div>
+        ))}
+      </div>
+
+      <div style={previewDetailStyle}>
+        {selectedSermon ? (
+          <>
+            <BookOpen color="#f59e0b" size={34} />
+
+            <h2 style={previewTitleStyle}>
+              {selectedSermon.title || "Untitled Sermon"}
+            </h2>
+
+            <div style={metadataRowStyle}>
+              <span style={metadataBadge}>Category: {selectedSermon.category || "Uncategorized"}</span>
+              <span style={metadataBadge}>Scripture: {selectedSermon.scripture || "-"}</span>
+            </div>
+
+            {Array.isArray(selectedSermon.tags) && selectedSermon.tags.length > 0 && (
+              <div style={tagRowStyle}>
+                {selectedSermon.tags.map((tag) => (
+                  <span key={tag} style={tagBadgeStyle}>
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div style={buttonRow}>
+              {activeTab !== "trash" ? (
+                <>
+                  <button
+                    style={smallButton}
+                    onClick={() => navigate(`/editor/${selectedSermon.id}`)}
+                  >
+                    Edit
+                  </button>
+
+                  <button
+                    style={preachButton}
+                    onClick={() => navigate(`/preach/${selectedSermon.id}`)}
+                  >
+                    Preach
+                  </button>
+
+                  <button
+                    style={favoriteButton}
+                    onClick={() => toggleFavorite(selectedSermon)}
+                  >
+                    <Star
+                      size={16}
+                      fill={selectedSermon.is_favorite ? "#f59e0b" : "none"}
+                    />
+                  </button>
+
+                  <button
+                    style={trashButton}
+                    onClick={() => moveToTrash(selectedSermon)}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </>
+              ) : (
+                <button
+                  style={restoreButton}
+                  onClick={() => restoreSermon(selectedSermon)}
+                >
+                  <RotateCcw size={16} />
+                  Restore
+                </button>
+              )}
+            </div>
+
+            <div
+              style={sermonPreviewContentStyle}
+              dangerouslySetInnerHTML={{
+                __html:
+                  selectedSermon.content ||
+                  "<p>No sermon content available.</p>",
+              }}
+            />
+          </>
+        ) : (
+          <p style={emptyText}>Select a sermon to view details.</p>
+        )}
+      </div>
+    </div>
+    </>
+  );
+}
+
 function SermonCard({
   sermon,
   viewMode,
@@ -402,6 +606,16 @@ function SermonCard({
         <h3>{sermon.title}</h3>
         <p style={mutedText}>{sermon.category || "Uncategorized"}</p>
         <p style={{ color: "#cbd5e1" }}>{sermon.scripture}</p>
+
+        {Array.isArray(sermon.tags) && sermon.tags.length > 0 && (
+          <div style={tagRowStyle}>
+            {sermon.tags.map((tag) => (
+              <span key={tag} style={tagBadgeStyle}>
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {activeTab !== "trash" ? (
@@ -471,13 +685,47 @@ const pageStyle = {
 };
 
 const sidebarStyle = {
-  width: "260px",
+  width: "280px",
   background: "#0f172a",
   padding: "30px",
   borderRight: "1px solid #1e293b",
 };
 
-const mainStyle = { flex: 1, padding: "40px" };
+const brandBox = {
+  borderBottom: "1px solid #334155",
+  paddingBottom: "20px",
+};
+
+const brandTitle = {
+  color: "#f59e0b",
+  margin: 0,
+  fontSize: "20px",
+  lineHeight: "1.1",
+  fontWeight: "900",
+};
+
+const brandTagline = {
+  color: "white",
+  fontSize: "13px",
+  fontWeight: "bold",
+  marginTop: "10px",
+};
+
+const brandVerse = {
+  color: "#cbd5e1",
+  fontSize: "12px",
+  lineHeight: "1.5",
+  fontStyle: "italic",
+};
+
+const poweredBy = {
+  color: "#64748b",
+  fontSize: "11px",
+  lineHeight: "1.5",
+  marginTop: "12px",
+};
+
+const mainStyle = { flex: 1, padding: "40px", overflow: "hidden" };
 const mutedText = { color: "#94a3b8" };
 
 const getNavStyle = (active) => ({
@@ -538,6 +786,7 @@ const activeViewButton = {
   ...viewButton,
   background: "#f59e0b",
   color: "#000",
+  fontWeight: "bold",
 };
 
 const newButtonStyle = {
@@ -686,62 +935,160 @@ const restoreButton = {
   gap: "6px",
 };
 
+const tagRowStyle = {
+  display: "flex",
+  gap: "8px",
+  flexWrap: "wrap",
+  marginTop: "10px",
+};
+
+const tagBadgeStyle = {
+  background: "#1e293b",
+  border: "1px solid #334155",
+  color: "#f59e0b",
+  padding: "6px 10px",
+  borderRadius: "999px",
+  fontWeight: "bold",
+  fontSize: "12px",
+};
+
+const previewLayoutStyle = {
+  display: "grid",
+  gridTemplateColumns: "320px 1fr",
+  gap: "20px",
+  minHeight: "620px",
+};
+
+const previewResizeControls = {
+  display: "flex",
+  gap: "10px",
+  marginBottom: "15px",
+  flexWrap: "wrap",
+};
+
+const previewListStyle = {
+  background: "#0f172a",
+  border: "1px solid #1e293b",
+  borderRadius: "16px",
+  padding: "15px",
+  maxHeight: "720px",
+  overflowY: "auto",
+};
+
+const previewListHeading = {
+  color: "#f59e0b",
+  marginTop: 0,
+};
+
+const previewItemStyle = {
+  padding: "14px",
+  borderRadius: "12px",
+  border: "1px solid #1e293b",
+  marginBottom: "10px",
+  cursor: "pointer",
+  background: "#020617",
+};
+
+const activePreviewItemStyle = {
+  ...previewItemStyle,
+  background: "#1e293b",
+  border: "1px solid #f59e0b",
+};
+
+const previewItemMeta = {
+  color: "#94a3b8",
+  margin: "6px 0 0",
+  fontSize: "13px",
+};
+
+const previewDetailStyle = {
+  background: "#0f172a",
+  border: "1px solid #1e293b",
+  borderRadius: "16px",
+  padding: "25px",
+  maxHeight: "720px",
+  overflowY: "auto",
+};
+
+const previewTitleStyle = {
+  fontSize: "34px",
+  lineHeight: "1.15",
+  marginBottom: "15px",
+};
+
+const metadataRowStyle = {
+  display: "flex",
+  gap: "10px",
+  flexWrap: "wrap",
+  marginBottom: "10px",
+};
+
+const metadataBadge = {
+  background: "#020617",
+  border: "1px solid #334155",
+  color: "#cbd5e1",
+  padding: "8px 10px",
+  borderRadius: "8px",
+  fontSize: "14px",
+};
+
+const sermonPreviewContentStyle = {
+  background: "#020617",
+  border: "1px solid #334155",
+  borderRadius: "12px",
+  padding: "20px",
+  marginTop: "20px",
+  color: "#e5e7eb",
+  lineHeight: "1.8",
+  fontSize: "16px",
+};
+
 const emptyText = {
   color: "#94a3b8",
   fontSize: "18px",
 };
 
 
-const storageCardStyle = {
-  background: "#0f172a",
-  border: "1px solid #1e293b",
-  borderRadius: "16px",
-  padding: "16px",
-  marginBottom: "24px",
-  boxShadow: "0 18px 50px rgba(0,0,0,0.25)",
+const sidebarStorageCardStyle = {
+  marginTop: "22px",
+  background: "#020617",
+  border: "1px solid rgba(134, 239, 172, 0.35)",
+  borderRadius: "14px",
+  padding: "12px",
+  color: "#e5e7eb",
+  boxShadow: "0 12px 35px rgba(0,0,0,0.25)",
 };
 
-const storageHeaderStyle = {
+const sidebarStorageHeaderStyle = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  gap: "12px",
-  color: "#f8fafc",
-  marginBottom: "12px",
-  flexWrap: "wrap",
+  gap: "8px",
+  fontSize: "13px",
+  marginBottom: "10px",
+  color: "#d9f99d",
 };
 
-const storageBarOuter = {
-  height: "12px",
-  background: "#020617",
+const sidebarStorageBarOuter = {
+  height: "8px",
+  background: "#0f172a",
   borderRadius: "999px",
   overflow: "hidden",
-  border: "1px solid #334155",
+  border: "1px solid #1e293b",
+  marginBottom: "8px",
 };
 
-const storageBarInner = {
+const sidebarStorageBarInner = {
   height: "100%",
   borderRadius: "999px",
   transition: "width 0.3s ease",
 };
 
-const storageDetailsStyle = {
-  display: "flex",
-  gap: "14px",
-  flexWrap: "wrap",
-  marginTop: "12px",
+const sidebarStorageTextStyle = {
+  margin: "4px 0 0",
   color: "#94a3b8",
-  fontSize: "13px",
-};
-
-const storageWarningStyle = {
-  marginTop: "12px",
-  color: "#fde68a",
-  background: "rgba(212,160,23,0.12)",
-  border: "1px solid rgba(212,160,23,0.35)",
-  borderRadius: "10px",
-  padding: "10px",
-  lineHeight: "1.5",
+  fontSize: "12px",
+  lineHeight: "1.35",
 };
 
 
