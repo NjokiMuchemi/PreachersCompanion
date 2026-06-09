@@ -172,7 +172,7 @@ function Editor() {
   }, [hasUnsavedChanges]);
 
   function markUnsaved() {
-    markUnsaved();
+    setSaveStatus("Unsaved changes");
     setHasUnsavedChanges(true);
   }
 
@@ -516,7 +516,11 @@ Admin contact: njokire@gmail.com`,
         return;
       }
 
-      setModal({ icon: "✅", title: "Sermon Saved", message: "Your sermon has been saved successfully." });
+      setModal({
+        icon: "✅",
+        title: "Sermon Saved Successfully",
+        message: "Your sermon has been saved. All changes are now secure.",
+      });
       return;
     }
 
@@ -543,7 +547,11 @@ Admin contact: njokire@gmail.com`,
       return;
     }
 
-    setModal({ icon: "✅", title: "Sermon Saved", message: "Your sermon has been saved successfully." });
+    setModal({
+        icon: "✅",
+        title: "Sermon Saved Successfully",
+        message: "Your sermon has been saved. All changes are now secure.",
+      });
   }
 
   function handleDelete() {
@@ -735,7 +743,7 @@ Admin contact: njokire@gmail.com`,
             </button>
           )}
 
-          <button style={primaryButton} onClick={handleSave}>
+          <button style={primaryButton} onClick={() => handleSave(false)}>
             <Save size={18} />
             Save Sermon
           </button>
@@ -1076,6 +1084,7 @@ Admin contact: njokire@gmail.com`,
           style={secondaryButton}
           onClick={() => {
             setUnsavedModalOpen(false);
+            setHasUnsavedChanges(false);
             navigate("/dashboard");
           }}
         >
