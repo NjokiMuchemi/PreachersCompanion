@@ -40,8 +40,61 @@ import Color from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
 import FontFamily from "@tiptap/extension-font-family";
 import Image from "@tiptap/extension-image";
+import { Extension } from "@tiptap/core";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+
+
+const FontSize = Extension.create({
+  name: "fontSize",
+
+  addOptions() {
+    return {
+      types: ["textStyle"],
+    };
+  },
+
+  addGlobalAttributes() {
+    return [
+      {
+        types: this.options.types,
+        attributes: {
+          fontSize: {
+            default: null,
+            parseHTML: (element) => element.style.fontSize?.replace(/['"]+/g, ""),
+            renderHTML: (attributes) => {
+              if (!attributes.fontSize) {
+                return {};
+              }
+
+              return {
+                style: `font-size: ${attributes.fontSize}`,
+              };
+            },
+          },
+        },
+      },
+    ];
+  },
+
+  addCommands() {
+    return {
+      setFontSize:
+        (fontSize) =>
+        ({ chain }) => {
+          return chain().setMark("textStyle", { fontSize }).run();
+        },
+      unsetFontSize:
+        () =>
+        ({ chain }) => {
+          return chain()
+            .setMark("textStyle", { fontSize: null })
+            .removeEmptyTextStyle()
+            .run();
+        },
+    };
+  },
+});
 
 function Editor() {
   const { id } = useParams();
@@ -53,6 +106,7 @@ function Editor() {
   const [scripture, setScripture] = useState("");
   const [tagsInput, setTagsInput] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const [aiAction, setAiAction] = useState("outline");
   const [aiPrompt, setAiPrompt] = useState("");
@@ -71,12 +125,13 @@ function Editor() {
       TextStyle,
       Color,
       FontFamily,
+      FontSize,
       Image,
       Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
     ],
     content: "",
-    onUpdate: () => setSaveStatus("Unsaved changes"),
+    onUpdate: () => markUnsaved(),
   });
 
   useEffect(() => {
@@ -99,7 +154,7 @@ function Editor() {
 
   useEffect(() => {
     const handleBeforeUnload = (e) => {
-      if (saveStatus === "Unsaved changes") {
+      if (hasUnsavedChanges) {
         e.preventDefault();
         e.returnValue = "";
       }
@@ -110,7 +165,12 @@ function Editor() {
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [saveStatus]);
+  }, [hasUnsavedChanges]);
+
+  function markUnsaved() {
+    markUnsaved();
+    setHasUnsavedChanges(true);
+  }
 
   function getTagsArray() {
     return tagsInput
@@ -159,6 +219,7 @@ function Editor() {
     setTagsInput((data.tags || []).join(", "));
     editor.commands.setContent(data.content || "");
     setSaveStatus("Saved");
+    setHasUnsavedChanges(false);
   }
 
   async function autoSave() {
@@ -186,6 +247,7 @@ function Editor() {
     }
 
     setSaveStatus("Auto-saved");
+    setHasUnsavedChanges(false);
   }
 
   async function lookupBibleVerse() {
@@ -267,7 +329,7 @@ function Editor() {
 
     editor.chain().focus().insertContent(formatted).run();
 
-    setSaveStatus("Unsaved changes");
+    markUnsaved();
   }
 
   function insertBibleVerse() {
@@ -281,7 +343,7 @@ function Editor() {
       .insertContent(`<blockquote>${safeVerse}</blockquote>`)
       .run();
 
-    setSaveStatus("Unsaved changes");
+    markUnsaved();
   }
 
   async function handlePdfImport(event) {
@@ -314,7 +376,7 @@ function Editor() {
       setTitle(file.name.replace(".pdf", ""));
     }
 
-    setSaveStatus("Unsaved changes");
+    markUnsaved();
   }
 
   async function handleWordImport(event) {
@@ -342,7 +404,7 @@ function Editor() {
       setTitle(cleanFileName);
     }
 
-    setSaveStatus("Unsaved changes");
+    markUnsaved();
   }
 
   async function handleImageUpload(event) {
@@ -381,7 +443,7 @@ function Editor() {
       .insertContent(`<img src="${imageUrl}" alt="sermon image" />`)
       .run();
 
-    setSaveStatus("Unsaved changes");
+    markUnsaved();
   }
 
   async function handleSave() {
@@ -421,7 +483,8 @@ function Editor() {
       }
 
       setSaveStatus("Saved");
-      alert("Sermon updated successfully!");
+      setHasUnsavedChanges(false);
+      alert("Sermon saved successfully!");
       navigate("/dashboard");
       return;
     }
@@ -442,6 +505,8 @@ function Editor() {
       return;
     }
 
+    setSaveStatus("Saved");
+    setHasUnsavedChanges(false);
     alert("Sermon saved successfully!");
     navigate("/dashboard");
   }
@@ -592,13 +657,16 @@ function Editor() {
         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
           <button
             style={dashboardButton}
-            onClick={() => {
-              if (saveStatus === "Unsaved changes") {
-                const leave = window.confirm(
-                  "You have unsaved changes. Leave without saving?"
+            onClick={async () => {
+              if (hasUnsavedChanges) {
+                const shouldSave = window.confirm(
+                  "You have unsaved changes. Click OK to save before leaving, or Cancel to leave without saving."
                 );
 
-                if (!leave) return;
+                if (shouldSave) {
+                  await handleSave();
+                  return;
+                }
               }
 
               navigate("/dashboard");
@@ -648,7 +716,7 @@ function Editor() {
           value={title}
           onChange={(e) => {
             setTitle(e.target.value);
-            setSaveStatus("Unsaved changes");
+            markUnsaved();
           }}
           style={titleInput}
         />
@@ -657,7 +725,7 @@ function Editor() {
           value={category}
           onChange={(e) => {
             setCategory(e.target.value);
-            setSaveStatus("Unsaved changes");
+            markUnsaved();
           }}
           style={inputStyle}
         >
@@ -675,7 +743,7 @@ function Editor() {
           value={category}
           onChange={(e) => {
             setCategory(e.target.value);
-            setSaveStatus("Unsaved changes");
+            markUnsaved();
           }}
           style={inputStyle}
         />
@@ -686,7 +754,7 @@ function Editor() {
           value={scripture}
           onChange={(e) => {
             setScripture(e.target.value);
-            setSaveStatus("Unsaved changes");
+            markUnsaved();
           }}
           style={inputStyle}
         />
@@ -697,7 +765,7 @@ function Editor() {
           value={tagsInput}
           onChange={(e) => {
             setTagsInput(e.target.value);
-            setSaveStatus("Unsaved changes");
+            markUnsaved();
           }}
           style={inputStyle}
         />
@@ -909,15 +977,15 @@ function Editor() {
           <select
             style={selectStyle}
             onChange={(e) =>
-              editor
-                .chain()
-                .focus()
-                .setMark("textStyle", { fontSize: e.target.value })
-                .run()
+              editor.chain().focus().setFontSize(e.target.value).run()
             }
             defaultValue=""
           >
             <option value="" disabled>Size</option>
+            <option value="8px">8</option>
+            <option value="9px">9</option>
+            <option value="10px">10</option>
+            <option value="11px">11</option>
             <option value="12px">12</option>
             <option value="14px">14</option>
             <option value="16px">16</option>
@@ -928,6 +996,8 @@ function Editor() {
             <option value="32px">32</option>
             <option value="36px">36</option>
             <option value="48px">48</option>
+            <option value="60px">60</option>
+            <option value="72px">72</option>
           </select>
 
         </div>
