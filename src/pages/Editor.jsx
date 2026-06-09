@@ -41,61 +41,8 @@ import Color from "@tiptap/extension-color";
 import { TextStyle } from "@tiptap/extension-text-style";
 import FontFamily from "@tiptap/extension-font-family";
 import Image from "@tiptap/extension-image";
-import { Extension } from "@tiptap/core";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
-
-
-const FontSize = Extension.create({
-  name: "fontSize",
-
-  addOptions() {
-    return {
-      types: ["textStyle"],
-    };
-  },
-
-  addGlobalAttributes() {
-    return [
-      {
-        types: this.options.types,
-        attributes: {
-          fontSize: {
-            default: null,
-            parseHTML: (element) => element.style.fontSize?.replace(/['"]+/g, ""),
-            renderHTML: (attributes) => {
-              if (!attributes.fontSize) {
-                return {};
-              }
-
-              return {
-                style: `font-size: ${attributes.fontSize}`,
-              };
-            },
-          },
-        },
-      },
-    ];
-  },
-
-  addCommands() {
-    return {
-      setFontSize:
-        (fontSize) =>
-        ({ chain }) => {
-          return chain().setMark("textStyle", { fontSize }).run();
-        },
-      unsetFontSize:
-        () =>
-        ({ chain }) => {
-          return chain()
-            .setMark("textStyle", { fontSize: null })
-            .removeEmptyTextStyle()
-            .run();
-        },
-    };
-  },
-});
 
 function Editor() {
   const { id } = useParams();
@@ -109,6 +56,8 @@ function Editor() {
   const [saveStatus, setSaveStatus] = useState("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [modal, setModal] = useState(null);
+  const [unsavedModalOpen, setUnsavedModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
   const [aiAction, setAiAction] = useState("outline");
   const [aiPrompt, setAiPrompt] = useState("");
@@ -127,7 +76,6 @@ function Editor() {
       TextStyle,
       Color,
       FontFamily,
-      FontSize,
       Image,
       Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
@@ -170,7 +118,7 @@ function Editor() {
   }, [hasUnsavedChanges]);
 
   function markUnsaved() {
-    setSaveStatus("Unsaved changes");
+    markUnsaved();
     setHasUnsavedChanges(true);
   }
 
@@ -419,9 +367,13 @@ function Editor() {
       setModal({
         icon: "⚠️",
         title: "Image Upload Blocked",
-        message: `\n\nThis image is ${Math.round(
+        message: `This image is ${Math.round(
           file.size / 1024
-        )} KB, which is larger than the allowed ${maxImageSizeKb} KB.\n\nPlease compress the image, delete unused data, or contact admin for additional quota.\n\nAdmin contact: njokire@gmail.com`,
+        )} KB, which is larger than the allowed ${maxImageSizeKb} KB.
+
+Please compress the image, delete unused data, or contact admin for additional quota.
+
+Admin contact: njokire@gmail.com`,
       });
 
       event.target.value = "";
@@ -501,7 +453,6 @@ function Editor() {
 
       setSaveStatus("Saved");
       setHasUnsavedChanges(false);
-      alert("Sermon saved successfully!");
       navigate("/dashboard");
       return;
     }
@@ -524,27 +475,26 @@ function Editor() {
 
     setSaveStatus("Saved");
     setHasUnsavedChanges(false);
-    alert("Sermon saved successfully!");
     navigate("/dashboard");
   }
 
-  async function handleDelete() {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this sermon?"
-    );
+  function handleDelete() {
+    setDeleteModalOpen(true);
+  }
 
-    if (!confirmDelete) return;
-
-    const secondConfirm = prompt("Type DELETE to permanently remove this sermon.");
-
-    if (secondConfirm !== "DELETE") {
-      alert("Deletion cancelled.");
-      return;
-    }
-
+  async function confirmDeleteSermon() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
+    if (!user) {
+      setModal({
+        icon: "⚠️",
+        title: "Not Logged In",
+        message: "You must be logged in to delete a sermon.",
+      });
+      return;
+    }
 
     const { error } = await supabase
       .from("sermons")
@@ -553,11 +503,15 @@ function Editor() {
       .eq("user_id", user.id);
 
     if (error) {
-      alert(error.message);
+      setModal({
+        icon: "⚠️",
+        title: "Delete Failed",
+        message: error.message,
+      });
       return;
     }
 
-    alert("Sermon deleted successfully.");
+    setDeleteModalOpen(false);
     navigate("/dashboard");
   }
 
@@ -674,18 +628,9 @@ function Editor() {
         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
           <button
             style={dashboardButton}
-            onClick={async () => {
+            onClick={() => {
               if (hasUnsavedChanges) {
-                const shouldSave = window.confirm(
-                  "You have unsaved changes. Click OK to save before leaving, or Cancel to leave without saving."
-                );
-
-                if (shouldSave) {
-                  await handleSave();
-                  return;
-                }
-
-                navigate("/dashboard");
+                setUnsavedModalOpen(true);
                 return;
               }
 
@@ -992,34 +937,7 @@ function Editor() {
             <option value="Times New Roman">Times New Roman</option>
             <option value="Verdana">Verdana</option>
             <option value="Courier New">Courier New</option>
-</select>
-
-          <select
-            style={selectStyle}
-            onChange={(e) =>
-              editor.chain().focus().setFontSize(e.target.value).run()
-            }
-            defaultValue=""
-          >
-            <option value="" disabled>Size</option>
-            <option value="8px">8</option>
-            <option value="9px">9</option>
-            <option value="10px">10</option>
-            <option value="11px">11</option>
-            <option value="12px">12</option>
-            <option value="14px">14</option>
-            <option value="16px">16</option>
-            <option value="18px">18</option>
-            <option value="20px">20</option>
-            <option value="24px">24</option>
-            <option value="28px">28</option>
-            <option value="32px">32</option>
-            <option value="36px">36</option>
-            <option value="48px">48</option>
-            <option value="60px">60</option>
-            <option value="72px">72</option>
           </select>
-
         </div>
 
         <EditorContent
@@ -1028,7 +946,7 @@ function Editor() {
           style={editorContentStyle}
         />
       </div>
-    
+
       <AppModal
         open={!!modal}
         icon={modal?.icon}
@@ -1036,23 +954,65 @@ function Editor() {
         message={modal?.message}
         onClose={() => setModal(null)}
       >
-        <button
-          style={{
-            background: "#d9f99d",
-            color: "#0f172a",
-            border: "none",
-            padding: "14px",
-            borderRadius: "12px",
-            fontWeight: 700,
-            cursor: "pointer",
-          }}
-          onClick={() => setModal(null)}
-        >
+        <button style={primaryButton} onClick={() => setModal(null)}>
           OK
         </button>
       </AppModal>
 
-</div>
+      <AppModal
+        open={unsavedModalOpen}
+        icon="💾"
+        title="Unsaved Changes"
+        message="You have made changes to this sermon that have not been saved using the Save Sermon button."
+        onClose={() => setUnsavedModalOpen(false)}
+      >
+        <button
+          style={primaryButton}
+          onClick={async () => {
+            setUnsavedModalOpen(false);
+            await handleSave();
+          }}
+        >
+          Save Sermon
+        </button>
+
+        <button
+          style={secondaryButton}
+          onClick={() => {
+            setUnsavedModalOpen(false);
+            navigate("/dashboard");
+          }}
+        >
+          Leave Without Saving
+        </button>
+
+        <button
+          style={secondaryButton}
+          onClick={() => setUnsavedModalOpen(false)}
+        >
+          Continue Editing
+        </button>
+      </AppModal>
+
+      <AppModal
+        open={deleteModalOpen}
+        icon="🗑️"
+        title="Delete Sermon?"
+        message="This will permanently delete this sermon. This action cannot be undone."
+        onClose={() => setDeleteModalOpen(false)}
+      >
+        <button style={deleteButton} onClick={confirmDeleteSermon}>
+          Delete Sermon
+        </button>
+
+        <button
+          style={secondaryButton}
+          onClick={() => setDeleteModalOpen(false)}
+        >
+          Cancel
+        </button>
+      </AppModal>
+    </div>
   );
 }
 
