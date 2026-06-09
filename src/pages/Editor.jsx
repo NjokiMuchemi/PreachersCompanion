@@ -410,6 +410,20 @@ function Editor() {
     const file = event.target.files[0];
     if (!file) return;
 
+    const maxImageSizeKb = 500;
+    const maxImageSizeBytes = maxImageSizeKb * 1024;
+
+    if (file.size > maxImageSizeBytes) {
+      alert(
+        `Image upload blocked.\n\nThis image is ${Math.round(
+          file.size / 1024
+        )} KB, which is larger than the allowed ${maxImageSizeKb} KB.\n\nPlease compress the image, delete unused data, or contact admin for additional quota.\n\nAdmin contact: njokire@gmail.com`
+      );
+
+      event.target.value = "";
+      return;
+    }
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
