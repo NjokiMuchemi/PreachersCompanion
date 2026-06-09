@@ -18,6 +18,7 @@ import { supabase } from "../lib/supabase";
 import brandLogo from "../assets/brand-logo.png";
 
 function Dashboard() {
+  const [storageInfo, setStorageInfo] = useState(null);
   const [sermons, setSermons] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
@@ -28,7 +29,22 @@ function Dashboard() {
 
   const navigate = useNavigate();
 
-  useEffect(() => {
+  
+  async function loadStorageUsage(userId) {
+    try {
+      const res = await fetch("/api/user-storage-usage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      const data = await res.json();
+      setStorageInfo(data);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+useEffect(() => {
     fetchSermons();
   }, []);
 
