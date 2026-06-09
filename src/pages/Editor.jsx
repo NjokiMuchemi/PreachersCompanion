@@ -11,15 +11,7 @@ import {
   Italic,
   Underline as UnderlineIcon,
   List,
-  ListOrdered,
   Heading1,
-  Heading2,
-  Heading3,
-  Quote,
-  Undo2,
-  Redo2,
-  Eraser,
-  Minus,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -71,8 +63,6 @@ function Editor() {
   const [bibleResult, setBibleResult] = useState("");
   const [bibleLoading, setBibleLoading] = useState(false);
   const [bibleTranslation, setBibleTranslation] = useState("kjv");
-  const [showDetails, setShowDetails] = useState(false);
-  const [showBibleLookup, setShowBibleLookup] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -86,7 +76,6 @@ function Editor() {
       TextAlign.configure({ types: ["heading", "paragraph"] }),
     ],
     content: "",
-    editable: true,
     onUpdate: () => setSaveStatus("Unsaved changes"),
   });
 
@@ -107,6 +96,21 @@ function Editor() {
 
     return () => clearTimeout(timer);
   }, [title, category, scripture, tagsInput, editor?.getHTML()]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (saveStatus === "Unsaved changes") {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [saveStatus]);
 
   function getTagsArray() {
     return tagsInput
@@ -585,20 +589,37 @@ function Editor() {
   return (
     <div style={pageStyle}>
       <div style={topBarStyle}>
-        <div style={topLeftStyle}>
-          <button style={dashboardButton} onClick={() => navigate("/dashboard")}>
+        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          <button
+            style={dashboardButton}
+            onClick={() => {
+              if (saveStatus === "Unsaved changes") {
+                const leave = window.confirm(
+                  "You have unsaved changes. Leave without saving?"
+                );
+
+                if (!leave) return;
+              }
+
+              navigate("/dashboard");
+            }}
+          >
             <ArrowLeft size={18} />
             Dashboard
           </button>
 
           <div>
             <h1 style={headingStyle}>{id ? "Edit Sermon" : "Sermon Editor"}</h1>
-            <p style={subtitleStyle}>Prepare and organize your ministry messages.</p>
+
+            <p style={subtitleStyle}>
+              Prepare and organize your ministry messages.
+            </p>
+
             <p style={saveStatusStyle}>{saveStatus}</p>
           </div>
         </div>
 
-        <div style={headerActionsStyle}>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
           <button style={secondaryButton} onClick={exportPDF}>
             <Download size={18} /> PDF
           </button>
@@ -615,12 +636,12 @@ function Editor() {
 
           <button style={primaryButton} onClick={handleSave}>
             <Save size={18} />
-            {id ? "Update Sermon" : "Save Sermon"}
+            "Save Sermon"
           </button>
         </div>
       </div>
 
-      <div style={compactCardStyle}>
+      <div style={cardStyle}>
         <input
           type="text"
           placeholder="Sermon Title"
@@ -632,178 +653,178 @@ function Editor() {
           style={titleInput}
         />
 
-        <div style={detailToggleRow}>
-          <button style={secondaryButton} onClick={() => setShowDetails(!showDetails)}>
-            {showDetails ? "Hide Details" : "Show Details"}
+        <select
+          value={category}
+          onChange={(e) => {
+            setCategory(e.target.value);
+            setSaveStatus("Unsaved changes");
+          }}
+          style={inputStyle}
+        >
+          <option value="">Select existing category or type new below</option>
+          {existingCategories.map((cat) => (
+            <option key={cat} value={cat}>
+              {cat}
+            </option>
+          ))}
+        </select>
+
+        <input
+          type="text"
+          placeholder="Or type a new category"
+          value={category}
+          onChange={(e) => {
+            setCategory(e.target.value);
+            setSaveStatus("Unsaved changes");
+          }}
+          style={inputStyle}
+        />
+
+        <input
+          type="text"
+          placeholder="Scripture References"
+          value={scripture}
+          onChange={(e) => {
+            setScripture(e.target.value);
+            setSaveStatus("Unsaved changes");
+          }}
+          style={inputStyle}
+        />
+
+        <input
+          type="text"
+          placeholder="Tags e.g. faith, prayer, leadership, youth"
+          value={tagsInput}
+          onChange={(e) => {
+            setTagsInput(e.target.value);
+            setSaveStatus("Unsaved changes");
+          }}
+          style={inputStyle}
+        />
+      </div>
+
+      {false && (
+        <div style={aiCard}>
+          <div style={aiHeader}>
+            <strong>AI Sermon Assistant</strong>
+          </div>
+
+          <div style={aiRow}>
+            <select
+              value={aiAction}
+              onChange={(e) => setAiAction(e.target.value)}
+              style={aiSelect}
+            >
+              <option value="outline">Generate Sermon Outline</option>
+              <option value="expand">Expand Sermon Point</option>
+              <option value="prayer">Create Prayer Points</option>
+              <option value="altar">Create Altar Call</option>
+              <option value="summary">Summarize Sermon</option>
+              <option value="cleanup">Clean Up Notes</option>
+            </select>
+
+            <button style={aiButton} onClick={runAiAssistant}>
+              {aiLoading ? "Working..." : "Generate"}
+            </button>
+          </div>
+
+          <textarea
+            placeholder="Optional instruction e.g. make it suitable for youth, Sunday service, leadership class..."
+            value={aiPrompt}
+            onChange={(e) => setAiPrompt(e.target.value)}
+            style={aiPromptBox}
+          />
+
+          {aiResult && (
+            <div style={aiResultBox}>
+              <pre style={aiResultText}>{aiResult}</pre>
+
+              <button style={insertAiButton} onClick={insertAiResult}>
+                Insert Into Sermon
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div style={bibleCard}>
+        <div style={bibleHeader}>
+          <BookOpen size={20} />
+          <strong>Bible Lookup</strong>
+        </div>
+
+        <div style={bibleSearchRow}>
+          <input
+            type="text"
+            placeholder="Enter verse e.g. John 3:16"
+            value={bibleReference}
+            onChange={(e) => setBibleReference(e.target.value)}
+            style={bibleInput}
+          />
+
+          <select
+            value={bibleTranslation}
+            onChange={(e) => setBibleTranslation(e.target.value)}
+            style={translationSelect}
+          >
+            <option value="kjv">KJV</option>
+            <option value="web">WEB</option>
+            <option value="bbe">BBE</option>
+            <option value="asv">ASV</option>
+          </select>
+
+          <button style={bibleButton} onClick={lookupBibleVerse}>
+            <Search size={18} />
+            {bibleLoading ? "Searching..." : "Search"}
           </button>
 
-          <button style={secondaryButton} onClick={() => setShowBibleLookup(!showBibleLookup)}>
-            {showBibleLookup ? "Hide Bible Lookup" : "Bible Lookup"}
+          <button style={insertVerseButton} onClick={insertBibleVerse}>
+            Insert Verse
           </button>
         </div>
 
-        {showDetails && (
-          <div style={detailGridStyle}>
-            <select
-              value={category}
-              onChange={(e) => {
-                setCategory(e.target.value);
-                setSaveStatus("Unsaved changes");
-              }}
-              style={inputStyle}
-            >
-              <option value="">Select existing category</option>
-              {existingCategories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-
-            <input
-              type="text"
-              placeholder="Category"
-              value={category}
-              onChange={(e) => {
-                setCategory(e.target.value);
-                setSaveStatus("Unsaved changes");
-              }}
-              style={inputStyle}
-            />
-
-            <input
-              type="text"
-              placeholder="Scripture References"
-              value={scripture}
-              onChange={(e) => {
-                setScripture(e.target.value);
-                setSaveStatus("Unsaved changes");
-              }}
-              style={inputStyle}
-            />
-
-            <input
-              type="text"
-              placeholder="Tags e.g. faith, prayer, leadership, youth"
-              value={tagsInput}
-              onChange={(e) => {
-                setTagsInput(e.target.value);
-                setSaveStatus("Unsaved changes");
-              }}
-              style={inputStyle}
-            />
-          </div>
-        )}
-
-        {showBibleLookup && (
-          <div style={collapsiblePanelStyle}>
-            <div style={bibleHeader}>
-              <BookOpen size={18} />
-              <strong>Bible Lookup</strong>
-            </div>
-
-            <div style={bibleSearchRow}>
-              <input
-                type="text"
-                placeholder="Enter verse e.g. John 3:16"
-                value={bibleReference}
-                onChange={(e) => setBibleReference(e.target.value)}
-                style={bibleInput}
-              />
-
-              <select
-                value={bibleTranslation}
-                onChange={(e) => setBibleTranslation(e.target.value)}
-                style={translationSelect}
-              >
-                <option value="kjv">KJV</option>
-                <option value="web">WEB</option>
-                <option value="bbe">BBE</option>
-                <option value="asv">ASV</option>
-              </select>
-
-              <button style={bibleButton} onClick={lookupBibleVerse}>
-                <Search size={18} />
-                {bibleLoading ? "Searching..." : "Search"}
-              </button>
-
-              <button style={insertVerseButton} onClick={insertBibleVerse}>
-                Insert Verse
-              </button>
-            </div>
-
-            {bibleResult && <pre style={bibleResultBox}>{bibleResult}</pre>}
-          </div>
-        )}
+        {bibleResult && <pre style={bibleResultBox}>{bibleResult}</pre>}
       </div>
 
       <div style={editorCard}>
         <div style={toolbarStyle}>
-          <button title="Undo" style={toolButton} onClick={() => editor.chain().focus().undo().run()}>
-            <Undo2 size={18} />
-          </button>
-
-          <button title="Redo" style={toolButton} onClick={() => editor.chain().focus().redo().run()}>
-            <Redo2 size={18} />
-          </button>
-
-          <button title="Bold" style={toolButton} onClick={() => editor.chain().focus().toggleBold().run()}>
+          <button style={toolButton} onClick={() => editor.chain().focus().toggleBold().run()}>
             <Bold size={18} />
           </button>
 
-          <button title="Italic" style={toolButton} onClick={() => editor.chain().focus().toggleItalic().run()}>
+          <button style={toolButton} onClick={() => editor.chain().focus().toggleItalic().run()}>
             <Italic size={18} />
           </button>
 
-          <button title="Underline" style={toolButton} onClick={() => editor.chain().focus().toggleUnderline().run()}>
+          <button style={toolButton} onClick={() => editor.chain().focus().toggleUnderline().run()}>
             <UnderlineIcon size={18} />
           </button>
 
-          <button title="Heading 1" style={toolButton} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
+          <button style={toolButton} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}>
             <Heading1 size={18} />
           </button>
 
-          <button title="Heading 2" style={toolButton} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}>
-            <Heading2 size={18} />
-          </button>
-
-          <button title="Heading 3" style={toolButton} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}>
-            <Heading3 size={18} />
-          </button>
-
-          <button title="Bullet List" style={toolButton} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+          <button style={toolButton} onClick={() => editor.chain().focus().toggleBulletList().run()}>
             <List size={18} />
           </button>
 
-          <button title="Numbered List" style={toolButton} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
-            <ListOrdered size={18} />
-          </button>
-
-          <button title="Block Quote" style={toolButton} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
-            <Quote size={18} />
-          </button>
-
-          <button title="Horizontal Line" style={toolButton} onClick={() => editor.chain().focus().setHorizontalRule().run()}>
-            <Minus size={18} />
-          </button>
-
-          <button title="Align Left" style={toolButton} onClick={() => editor.chain().focus().setTextAlign("left").run()}>
+          <button style={toolButton} onClick={() => editor.chain().focus().setTextAlign("left").run()}>
             <AlignLeft size={18} />
           </button>
 
-          <button title="Align Center" style={toolButton} onClick={() => editor.chain().focus().setTextAlign("center").run()}>
+          <button style={toolButton} onClick={() => editor.chain().focus().setTextAlign("center").run()}>
             <AlignCenter size={18} />
           </button>
 
-          <button title="Align Right" style={toolButton} onClick={() => editor.chain().focus().setTextAlign("right").run()}>
+          <button style={toolButton} onClick={() => editor.chain().focus().setTextAlign("right").run()}>
             <AlignRight size={18} />
           </button>
 
-          <button title="Justify" style={toolButton} onClick={() => editor.chain().focus().setTextAlign("justify").run()}>
+          <button style={toolButton} onClick={() => editor.chain().focus().setTextAlign("justify").run()}>
             <AlignJustify size={18} />
           </button>
 
-          <label style={colorLabel} title="Text Color">
+          <label style={colorLabel}>
             <Palette size={18} />
             Text
             <input
@@ -814,50 +835,29 @@ function Editor() {
             />
           </label>
 
-          <button title="Clear Text Color" style={toolButton} onClick={() => editor.chain().focus().unsetColor().run()}>
+          <button style={toolButton} onClick={() => editor.chain().focus().unsetColor().run()}>
             Clear Color
           </button>
 
-          <label style={colorLabel} title="Highlight">
+          <label style={colorLabel}>
             <Highlighter size={18} />
             Highlight
             <input
               type="color"
               defaultValue="#fef08a"
-              onChange={(e) => editor.chain().focus().toggleHighlight({ color: e.target.value }).run()}
+              onChange={(e) =>
+                editor
+                  .chain()
+                  .focus()
+                  .toggleHighlight({ color: e.target.value })
+                  .run()
+              }
               style={colorInput}
             />
           </label>
 
-          <button title="Clear Highlight" style={toolButton} onClick={() => editor.chain().focus().unsetHighlight().run()}>
+          <button style={toolButton} onClick={() => editor.chain().focus().unsetHighlight().run()}>
             Clear Highlight
-          </button>
-
-          <button
-            title="Clear Formatting"
-            style={toolButton}
-            onClick={() => editor.chain().focus().unsetAllMarks().clearNodes().run()}
-          >
-            <Eraser size={18} />
-            Clear Format
-          </button>
-
-          <button
-            title="Remove Extra Blank Spaces"
-            style={toolButton}
-            onClick={() => {
-              const cleaned = editor
-                .getHTML()
-                .replace(/<p>\s*<\/p>/g, "")
-                .replace(/<p><br><\/p>/g, "")
-                .replace(/(<br\s*\/?>\s*){3,}/g, "<br><br>")
-                .replace(/\n{3,}/g, "\n\n");
-
-              editor.commands.setContent(cleaned);
-              setSaveStatus("Unsaved changes");
-            }}
-          >
-            Clean Spaces
           </button>
 
           <label style={imageUploadLabel}>
@@ -907,16 +907,11 @@ function Editor() {
           </select>
         </div>
 
-        <div
-          style={editorShellStyle}
-          onClick={() => editor?.chain().focus().run()}
-        >
-          <EditorContent
-            editor={editor}
-            className="sermon-editor"
-            style={editorContentStyle}
-          />
-        </div>
+        <EditorContent
+          editor={editor}
+          className="sermon-editor"
+          style={editorContentStyle}
+        />
       </div>
     </div>
   );
@@ -926,90 +921,125 @@ const pageStyle = {
   minHeight: "100vh",
   background: "#020617",
   color: "white",
-  padding: "0",
+  padding: "40px",
   fontFamily: "Arial, sans-serif",
 };
 
 const topBarStyle = {
-  position: "sticky",
-  top: 0,
-  zIndex: 50,
-  background: "#020617",
-  borderBottom: "1px solid #1e293b",
-  padding: "16px 32px",
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
+  marginBottom: "30px",
   gap: "20px",
-  flexWrap: "wrap",
 };
 
-const topLeftStyle = {
-  display: "flex",
-  gap: "14px",
-  alignItems: "center",
+const headingStyle = { margin: 0, fontSize: "48px", lineHeight: "1.1" };
+const subtitleStyle = { color: "#94a3b8", marginTop: "10px" };
+const saveStatusStyle = { color: "#f59e0b", fontSize: "14px", marginTop: "5px" };
+
+const cardStyle = {
+  background: "#0f172a",
+  padding: "25px",
+  borderRadius: "16px",
+  border: "1px solid #1e293b",
+  marginBottom: "25px",
 };
 
-const headerActionsStyle = {
+const aiCard = {
+  background: "#0f172a",
+  border: "1px solid #1e293b",
+  padding: "20px",
+  borderRadius: "16px",
+  marginBottom: "25px",
+};
+
+const aiHeader = {
+  color: "#f59e0b",
+  marginBottom: "15px",
+  fontSize: "18px",
+};
+
+const aiRow = {
   display: "flex",
   gap: "10px",
   flexWrap: "wrap",
+  marginBottom: "12px",
 };
 
-const headingStyle = {
-  margin: 0,
-  fontSize: "30px",
-  lineHeight: "1.1",
+const aiSelect = {
+  flex: 1,
+  minWidth: "240px",
+  background: "#1e293b",
+  color: "white",
+  border: "1px solid #334155",
+  padding: "12px",
+  borderRadius: "10px",
+  fontSize: "16px",
 };
 
-const subtitleStyle = {
-  color: "#94a3b8",
-  marginTop: "4px",
-};
-
-const saveStatusStyle = {
-  color: "#d4a017",
-  fontSize: "13px",
-  marginTop: "4px",
+const aiButton = {
+  background: "#f59e0b",
+  color: "#000",
+  border: "none",
+  padding: "12px 16px",
+  borderRadius: "10px",
+  cursor: "pointer",
   fontWeight: "bold",
 };
 
-const compactCardStyle = {
-  background: "#0f172a",
-  padding: "16px 22px",
-  borderRadius: "16px",
-  border: "1px solid #1e293b",
-  margin: "18px 32px",
+const aiPromptBox = {
+  width: "100%",
+  minHeight: "80px",
+  background: "#020617",
+  color: "white",
+  border: "1px solid #334155",
+  borderRadius: "10px",
+  padding: "12px",
+  fontSize: "15px",
+  boxSizing: "border-box",
+  marginBottom: "12px",
 };
 
-const detailToggleRow = {
-  display: "flex",
-  gap: "10px",
-  marginTop: "12px",
-  flexWrap: "wrap",
-};
-
-const detailGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(240px, 1fr))",
-  gap: "12px",
-  marginTop: "14px",
-};
-
-const collapsiblePanelStyle = {
+const aiResultBox = {
   background: "#020617",
   border: "1px solid #334155",
-  borderRadius: "12px",
-  padding: "14px",
-  marginTop: "14px",
+  borderRadius: "10px",
+  padding: "15px",
+  marginTop: "12px",
+};
+
+const aiResultText = {
+  whiteSpace: "pre-wrap",
+  color: "#e5e7eb",
+  lineHeight: "1.6",
+  margin: 0,
+};
+
+const insertAiButton = {
+  background: "#2563eb",
+  color: "white",
+  border: "none",
+  padding: "10px 14px",
+  borderRadius: "8px",
+  cursor: "pointer",
+  fontWeight: "bold",
+  marginTop: "12px",
+};
+
+const bibleCard = {
+  background: "#0f172a",
+  border: "1px solid #1e293b",
+  padding: "20px",
+  borderRadius: "16px",
+  marginBottom: "25px",
 };
 
 const bibleHeader = {
   display: "flex",
   alignItems: "center",
   gap: "10px",
-  marginBottom: "12px",
-  color: "#d4a017",
+  marginBottom: "15px",
+  color: "#f59e0b",
 };
 
 const bibleSearchRow = {
@@ -1021,28 +1051,28 @@ const bibleSearchRow = {
 const bibleInput = {
   flex: 1,
   minWidth: "240px",
-  padding: "11px",
+  padding: "12px",
   borderRadius: "10px",
   border: "1px solid #334155",
   background: "#1e293b",
   color: "white",
-  fontSize: "15px",
+  fontSize: "16px",
 };
 
 const translationSelect = {
   background: "#1e293b",
   color: "white",
   border: "1px solid #334155",
-  padding: "11px",
+  padding: "12px",
   borderRadius: "10px",
-  fontSize: "15px",
+  fontSize: "16px",
 };
 
 const bibleButton = {
-  background: "#d4a017",
+  background: "#f59e0b",
   color: "#000",
   border: "none",
-  padding: "11px 15px",
+  padding: "12px 16px",
   borderRadius: "10px",
   cursor: "pointer",
   fontWeight: "bold",
@@ -1055,7 +1085,7 @@ const insertVerseButton = {
   background: "#2563eb",
   color: "white",
   border: "none",
-  padding: "11px 15px",
+  padding: "12px 16px",
   borderRadius: "10px",
   cursor: "pointer",
   fontWeight: "bold",
@@ -1064,9 +1094,9 @@ const insertVerseButton = {
 const bibleResultBox = {
   background: "#020617",
   border: "1px solid #334155",
-  padding: "14px",
+  padding: "15px",
   borderRadius: "10px",
-  marginTop: "12px",
+  marginTop: "15px",
   color: "#e5e7eb",
   whiteSpace: "pre-wrap",
   lineHeight: "1.6",
@@ -1076,16 +1106,13 @@ const editorCard = {
   background: "#0f172a",
   borderRadius: "16px",
   border: "1px solid #1e293b",
-  overflow: "visible",
-  margin: "12px 32px 32px",
+  overflow: "hidden",
 };
 
 const toolbarStyle = {
-  position: "relative",
-  zIndex: 5,
   display: "flex",
-  gap: "8px",
-  padding: "10px 12px",
+  gap: "10px",
+  padding: "15px",
   borderBottom: "1px solid #1e293b",
   background: "#111827",
   flexWrap: "wrap",
@@ -1095,23 +1122,20 @@ const toolButton = {
   background: "#1e293b",
   border: "1px solid #334155",
   color: "white",
-  padding: "9px 10px",
+  padding: "10px",
   borderRadius: "8px",
   cursor: "pointer",
   display: "flex",
   alignItems: "center",
-  gap: "5px",
-  fontWeight: "bold",
 };
 
 const selectStyle = {
   background: "#1e293b",
   color: "white",
   border: "1px solid #334155",
-  padding: "9px 12px",
+  padding: "10px",
   borderRadius: "8px",
   cursor: "pointer",
-  minWidth: "150px",
 };
 
 const colorLabel = {
@@ -1125,13 +1149,12 @@ const colorLabel = {
   alignItems: "center",
   gap: "6px",
   fontSize: "14px",
-  fontWeight: "bold",
 };
 
 const imageUploadLabel = {
   background: "#2563eb",
   color: "white",
-  padding: "9px 13px",
+  padding: "10px 14px",
   borderRadius: "8px",
   cursor: "pointer",
   fontSize: "14px",
@@ -1145,7 +1168,7 @@ const imageUploadLabel = {
 const importWordLabel = {
   background: "#7c3aed",
   color: "white",
-  padding: "9px 13px",
+  padding: "10px 14px",
   borderRadius: "8px",
   cursor: "pointer",
   fontSize: "14px",
@@ -1159,7 +1182,7 @@ const importWordLabel = {
 const importPdfLabel = {
   background: "#be123c",
   color: "white",
-  padding: "9px 13px",
+  padding: "10px 14px",
   borderRadius: "8px",
   cursor: "pointer",
   fontSize: "14px",
@@ -1171,21 +1194,16 @@ const importPdfLabel = {
 };
 
 const colorInput = {
-  width: "26px",
-  height: "26px",
+  width: "28px",
+  height: "28px",
   border: "none",
   padding: 0,
   background: "transparent",
   cursor: "pointer",
 };
 
-const editorShellStyle = {
-  background: "#020617",
-  cursor: "text",
-};
-
 const editorContentStyle = {
-  minHeight: "680px",
+  minHeight: "500px",
   background: "#020617",
   color: "white",
   fontSize: "17px",
@@ -1194,32 +1212,34 @@ const editorContentStyle = {
 
 const titleInput = {
   width: "100%",
-  padding: "14px 16px",
+  padding: "18px",
+  marginBottom: "20px",
   borderRadius: "12px",
   border: "1px solid #334155",
   background: "#1e293b",
   color: "white",
-  fontSize: "24px",
+  fontSize: "28px",
   fontWeight: "bold",
   boxSizing: "border-box",
 };
 
 const inputStyle = {
   width: "100%",
-  padding: "12px",
+  padding: "14px",
+  marginBottom: "16px",
   borderRadius: "10px",
   border: "1px solid #334155",
   background: "#1e293b",
   color: "white",
-  fontSize: "15px",
+  fontSize: "16px",
   boxSizing: "border-box",
 };
 
 const primaryButton = {
-  background: "#d4a017",
+  background: "#f59e0b",
   color: "#000",
   border: "none",
-  padding: "11px 16px",
+  padding: "12px 18px",
   borderRadius: "10px",
   fontWeight: "bold",
   cursor: "pointer",
@@ -1232,20 +1252,19 @@ const secondaryButton = {
   background: "#1e293b",
   color: "white",
   border: "1px solid #334155",
-  padding: "11px 16px",
+  padding: "12px 18px",
   borderRadius: "10px",
   cursor: "pointer",
   display: "flex",
   alignItems: "center",
   gap: "8px",
-  fontWeight: "bold",
 };
 
 const deleteButton = {
-  background: "#b91c1c",
+  background: "#dc2626",
   color: "white",
   border: "none",
-  padding: "11px 16px",
+  padding: "12px 18px",
   borderRadius: "10px",
   fontWeight: "bold",
   cursor: "pointer",
@@ -1258,7 +1277,7 @@ const dashboardButton = {
   background: "#1e293b",
   color: "white",
   border: "1px solid #334155",
-  padding: "11px 15px",
+  padding: "12px 16px",
   borderRadius: "10px",
   cursor: "pointer",
   display: "flex",
