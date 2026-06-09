@@ -9,8 +9,9 @@ function Preach() {
 
   const [sermon, setSermon] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [fontSize, setFontSize] = useState(28);
+  const [fontSize, setFontSize] = useState(24);
   const [fullscreen, setFullscreen] = useState(false);
+  const [readingWidth, setReadingWidth] = useState("900px");
 
   useEffect(() => {
     fetchSermon();
@@ -25,6 +26,7 @@ function Preach() {
 
     if (error) {
       alert(error.message);
+      setLoading(false);
       return;
     }
 
@@ -46,6 +48,10 @@ function Preach() {
     return <div style={loadingStyle}>Loading sermon...</div>;
   }
 
+  if (!sermon) {
+    return <div style={loadingStyle}>Sermon not found.</div>;
+  }
+
   return (
     <div style={pageStyle}>
       <div style={topBar}>
@@ -64,9 +70,21 @@ function Preach() {
 
           <button
             style={controlButton}
-            onClick={() => setFontSize((prev) => Math.min(prev + 2, 60))}
+            onClick={() => setFontSize((prev) => Math.min(prev + 2, 42))}
           >
             A+
+          </button>
+
+          <button style={secondaryControlButton} onClick={() => setReadingWidth("760px")}>
+            Narrow
+          </button>
+
+          <button style={secondaryControlButton} onClick={() => setReadingWidth("900px")}>
+            Medium
+          </button>
+
+          <button style={secondaryControlButton} onClick={() => setReadingWidth("1100px")}>
+            Wide
           </button>
 
           <button style={controlButton} onClick={toggleFullscreen}>
@@ -75,20 +93,33 @@ function Preach() {
         </div>
       </div>
 
-      <div style={contentWrapper}>
-        <h1 style={titleStyle}>{sermon.title}</h1>
+      <main
+        style={{
+          ...contentWrapper,
+          maxWidth: readingWidth,
+        }}
+      >
+        <section style={sermonPaper}>
+          <header style={sermonHeader}>
+            <h1 style={titleStyle}>{sermon.title}</h1>
 
-        {sermon.scripture && <p style={scriptureStyle}>{sermon.scripture}</p>}
+            {sermon.scripture && (
+              <p style={scriptureStyle}>{sermon.scripture}</p>
+            )}
+          </header>
 
-        <div
-          className="preach-content"
-          style={{
-            ...contentStyle,
-            fontSize: `clamp(20px, 4.8vw, ${fontSize}px)`,
-          }}
-          dangerouslySetInnerHTML={{ __html: sermon.content }}
-        />
-      </div>
+          <div
+            className="preach-content preach-reading"
+            style={{
+              ...contentStyle,
+              fontSize: `${fontSize}px`,
+            }}
+            dangerouslySetInnerHTML={{
+              __html: sermon.content || "<p>No sermon content available.</p>",
+            }}
+          />
+        </section>
+      </main>
     </div>
   );
 }
@@ -97,7 +128,7 @@ const pageStyle = {
   minHeight: "100vh",
   background: "#020617",
   color: "white",
-  padding: "clamp(12px, 3vw, 24px)",
+  padding: "0",
   boxSizing: "border-box",
 };
 
@@ -115,12 +146,13 @@ const topBar = {
   position: "sticky",
   top: 0,
   zIndex: 100,
-  background: "#020617",
+  background: "rgba(2, 6, 23, 0.96)",
+  backdropFilter: "blur(10px)",
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
   gap: "12px",
-  paddingBottom: "14px",
+  padding: "14px 24px",
   borderBottom: "1px solid #1e293b",
   flexWrap: "wrap",
 };
@@ -136,6 +168,7 @@ const backButton = {
   alignItems: "center",
   gap: "8px",
   fontSize: "14px",
+  fontWeight: "bold",
 };
 
 const controls = {
@@ -145,7 +178,7 @@ const controls = {
 };
 
 const controlButton = {
-  background: "#f59e0b",
+  background: "#d4a017",
   color: "#000",
   border: "none",
   padding: "10px 14px",
@@ -155,31 +188,61 @@ const controlButton = {
   fontSize: "16px",
 };
 
+const secondaryControlButton = {
+  background: "#1e293b",
+  color: "white",
+  border: "1px solid #334155",
+  padding: "10px 14px",
+  borderRadius: "10px",
+  cursor: "pointer",
+  fontWeight: "bold",
+  fontSize: "14px",
+};
+
 const contentWrapper = {
   width: "100%",
-  maxWidth: "900px",
-  margin: "clamp(24px, 6vw, 48px) auto",
+  margin: "0 auto",
+  padding: "28px 20px 60px",
   boxSizing: "border-box",
 };
 
+const sermonPaper = {
+  background: "#0f172a",
+  border: "1px solid #1e293b",
+  borderRadius: "22px",
+  padding: "clamp(28px, 5vw, 56px)",
+  boxShadow: "0 20px 80px rgba(0,0,0,0.35)",
+};
+
+const sermonHeader = {
+  textAlign: "center",
+  borderBottom: "1px solid #334155",
+  paddingBottom: "24px",
+  marginBottom: "34px",
+};
+
 const titleStyle = {
-  fontSize: "clamp(30px, 7vw, 56px)",
-  marginBottom: "18px",
-  lineHeight: "1.15",
+  fontSize: "clamp(30px, 5vw, 54px)",
+  margin: "0 0 14px",
+  lineHeight: "1.12",
   color: "white",
+  fontWeight: "900",
+  letterSpacing: "-0.03em",
 };
 
 const scriptureStyle = {
-  color: "#f59e0b",
-  fontSize: "clamp(18px, 4vw, 26px)",
-  marginBottom: "32px",
-  lineHeight: "1.5",
+  color: "#d4a017",
+  fontSize: "clamp(18px, 2.4vw, 26px)",
+  margin: 0,
+  lineHeight: "1.4",
+  fontWeight: "bold",
 };
 
 const contentStyle = {
-  lineHeight: "1.85",
+  lineHeight: "1.65",
   color: "#f8fafc",
   overflowWrap: "break-word",
+  maxWidth: "100%",
 };
 
 export default Preach;
