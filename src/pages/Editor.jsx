@@ -904,7 +904,32 @@ function Editor() {
             <option value="Times New Roman">Times New Roman</option>
             <option value="Verdana">Verdana</option>
             <option value="Courier New">Courier New</option>
+</select>
+
+          <select
+            style={selectStyle}
+            onChange={(e) =>
+              editor
+                .chain()
+                .focus()
+                .setMark("textStyle", { fontSize: e.target.value })
+                .run()
+            }
+            defaultValue=""
+          >
+            <option value="" disabled>Size</option>
+            <option value="12px">12</option>
+            <option value="14px">14</option>
+            <option value="16px">16</option>
+            <option value="18px">18</option>
+            <option value="20px">20</option>
+            <option value="24px">24</option>
+            <option value="28px">28</option>
+            <option value="32px">32</option>
+            <option value="36px">36</option>
+            <option value="48px">48</option>
           </select>
+
         </div>
 
         <EditorContent
