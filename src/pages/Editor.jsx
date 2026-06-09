@@ -22,6 +22,7 @@ import {
   BookOpen,
   Search,
   ArrowLeft,
+  Share2,
 } from "lucide-react";
 
 import jsPDF from "jspdf";
@@ -121,6 +122,12 @@ function Editor() {
   const [bibleResult, setBibleResult] = useState("");
   const [bibleLoading, setBibleLoading] = useState(false);
   const [bibleTranslation, setBibleTranslation] = useState("kjv");
+
+  const [shareEmail, setShareEmail] = useState("");
+  const [shareStatus, setShareStatus] = useState("");
+  const [showShareBox, setShowShareBox] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const [showBibleLookup, setShowBibleLookup] = useState(false);
 
   const editor = useEditor({
     extensions: [
@@ -469,6 +476,109 @@ Admin contact: njokire@gmail.com`,
     markUnsaved();
   }
 
+
+  async function handleShareSermon() {
+    if (!id) {
+      setModal({
+        icon: "⚠️",
+        title: "Save Required",
+        message: "Please save the sermon first before sharing.",
+      });
+      return;
+    }
+
+    if (!shareEmail.trim()) {
+      setModal({
+        icon: "⚠️",
+        title: "Recipient Email Required",
+        message: "Please enter the recipient's login email.",
+      });
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!user || !session) {
+      setModal({
+        icon: "⚠️",
+        title: "Login Required",
+        message: "You must be logged in to share sermons.",
+      });
+      return;
+    }
+
+    if (shareEmail.trim().toLowerCase() === user.email?.toLowerCase()) {
+      setModal({
+        icon: "⚠️",
+        title: "Invalid Recipient",
+        message: "You cannot share a sermon with yourself.",
+      });
+      return;
+    }
+
+    setShareStatus("Checking recipient...");
+
+    const lookupResponse = await fetch("/api/find-user-by-email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        email: shareEmail.trim(),
+      }),
+    });
+
+    const lookupData = await lookupResponse.json();
+
+    if (!lookupResponse.ok) {
+      setShareStatus("");
+      setModal({
+        icon: "⚠️",
+        title: "Recipient Not Found",
+        message: lookupData.error || "Recipient not found.",
+      });
+      return;
+    }
+
+    setShareStatus("Sharing sermon...");
+
+    const { error } = await supabase.from("sermon_shares").insert([
+      {
+        sender_id: user.id,
+        recipient_id: lookupData.user.id,
+        sermon_id: id,
+        status: "pending",
+      },
+    ]);
+
+    if (error) {
+      setShareStatus("");
+      setModal({
+        icon: "⚠️",
+        title: "Share Failed",
+        message: error.message,
+      });
+      return;
+    }
+
+    setShareEmail("");
+    setShareStatus("");
+    setShowShareBox(false);
+
+    setModal({
+      icon: "✅",
+      title: "Sermon Shared",
+      message: "Sermon shared successfully.",
+    });
+  }
+
   async function saveAndLeaveDashboard() {
     await handleSave(true);
   }
@@ -738,6 +848,15 @@ Admin contact: njokire@gmail.com`,
           </button>
 
           {id && (
+            <button
+              style={shareButton}
+              onClick={() => setShowShareBox(!showShareBox)}
+            >
+              <Share2 size={18} /> Share
+            </button>
+          )}
+
+          {id && (
             <button style={deleteButton} onClick={handleDelete}>
               <Trash2 size={18} /> Delete
             </button>
@@ -749,6 +868,35 @@ Admin contact: njokire@gmail.com`,
           </button>
         </div>
       </div>
+
+
+      {showShareBox && (
+        <div style={shareBox}>
+          <h2 style={shareTitle}>Share Sermon</h2>
+
+          <p style={shareHelp}>
+            Enter the login email of another Preacher&apos;s Companion user.
+            They will see the sermon and choose whether to open, save, or discard it.
+          </p>
+
+          <div style={shareRow}>
+            <input
+              type="email"
+              placeholder="Recipient login email"
+              value={shareEmail}
+              onChange={(e) => setShareEmail(e.target.value)}
+              style={shareInput}
+            />
+
+            <button style={shareSendButton} onClick={handleShareSermon}>
+              <Share2 size={18} />
+              Send
+            </button>
+          </div>
+
+          {shareStatus && <p style={shareStatusStyle}>{shareStatus}</p>}
+        </div>
+      )}
 
       <div style={cardStyle}>
         <input
@@ -762,54 +910,76 @@ Admin contact: njokire@gmail.com`,
           style={titleInput}
         />
 
-        <select
-          value={category}
-          onChange={(e) => {
-            setCategory(e.target.value);
-            markUnsaved();
-          }}
-          style={inputStyle}
-        >
-          <option value="">Select existing category or type new below</option>
-          {existingCategories.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
-            </option>
-          ))}
-        </select>
+        <div style={collapseButtonRow}>
+          <button
+            type="button"
+            style={secondaryButton}
+            onClick={() => setShowDetails(!showDetails)}
+          >
+            {showDetails ? "Hide Details" : "Show Details"}
+          </button>
 
-        <input
-          type="text"
-          placeholder="Or type a new category"
-          value={category}
-          onChange={(e) => {
-            setCategory(e.target.value);
-            markUnsaved();
-          }}
-          style={inputStyle}
-        />
+          <button
+            type="button"
+            style={secondaryButton}
+            onClick={() => setShowBibleLookup(!showBibleLookup)}
+          >
+            {showBibleLookup ? "Hide Bible Lookup" : "Bible Lookup"}
+          </button>
+        </div>
 
-        <input
-          type="text"
-          placeholder="Scripture References"
-          value={scripture}
-          onChange={(e) => {
-            setScripture(e.target.value);
-            markUnsaved();
-          }}
-          style={inputStyle}
-        />
+        {showDetails && (
+          <div style={detailsGridStyle}>
+            <select
+              value={category}
+              onChange={(e) => {
+                setCategory(e.target.value);
+                markUnsaved();
+              }}
+              style={inputStyle}
+            >
+              <option value="">Select existing category or type new below</option>
+              {existingCategories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
 
-        <input
-          type="text"
-          placeholder="Tags e.g. faith, prayer, leadership, youth"
-          value={tagsInput}
-          onChange={(e) => {
-            setTagsInput(e.target.value);
-            markUnsaved();
-          }}
-          style={inputStyle}
-        />
+            <input
+              type="text"
+              placeholder="Or type a new category"
+              value={category}
+              onChange={(e) => {
+                setCategory(e.target.value);
+                markUnsaved();
+              }}
+              style={inputStyle}
+            />
+
+            <input
+              type="text"
+              placeholder="Scripture References"
+              value={scripture}
+              onChange={(e) => {
+                setScripture(e.target.value);
+                markUnsaved();
+              }}
+              style={inputStyle}
+            />
+
+            <input
+              type="text"
+              placeholder="Tags e.g. faith, prayer, leadership, youth"
+              value={tagsInput}
+              onChange={(e) => {
+                setTagsInput(e.target.value);
+                markUnsaved();
+              }}
+              style={inputStyle}
+            />
+          </div>
+        )}
       </div>
 
       {false && (
@@ -856,7 +1026,8 @@ Admin contact: njokire@gmail.com`,
         </div>
       )}
 
-      <div style={bibleCard}>
+      {showBibleLookup && (
+        <div style={bibleCard}>
         <div style={bibleHeader}>
           <BookOpen size={20} />
           <strong>Bible Lookup</strong>
@@ -893,7 +1064,8 @@ Admin contact: njokire@gmail.com`,
         </div>
 
         {bibleResult && <pre style={bibleResultBox}>{bibleResult}</pre>}
-      </div>
+        </div>
+      )}
 
       <div style={editorCard}>
         <div style={toolbarStyle}>
@@ -1463,6 +1635,91 @@ const secondaryButton = {
   alignItems: "center",
   gap: "8px",
 };
+
+
+const collapseButtonRow = {
+  display: "flex",
+  gap: "10px",
+  flexWrap: "wrap",
+  marginTop: "12px",
+};
+
+const detailsGridStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, minmax(240px, 1fr))",
+  gap: "12px",
+  marginTop: "16px",
+};
+
+const shareBox = {
+  background: "#0f172a",
+  border: "1px solid #334155",
+  padding: "18px",
+  borderRadius: "16px",
+  marginBottom: "20px",
+};
+
+const shareTitle = {
+  margin: "0 0 8px",
+  color: "#d9f99d",
+};
+
+const shareHelp = {
+  color: "#94a3b8",
+  lineHeight: "1.5",
+  marginBottom: "14px",
+};
+
+const shareRow = {
+  display: "flex",
+  gap: "10px",
+  flexWrap: "wrap",
+  alignItems: "center",
+};
+
+const shareInput = {
+  flex: 1,
+  minWidth: "260px",
+  padding: "12px",
+  borderRadius: "10px",
+  border: "1px solid #334155",
+  background: "#1e293b",
+  color: "white",
+  fontSize: "15px",
+};
+
+const shareButton = {
+  background: "#7c3aed",
+  color: "white",
+  border: "none",
+  padding: "12px 18px",
+  borderRadius: "10px",
+  fontWeight: "bold",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+};
+
+const shareSendButton = {
+  background: "#7c3aed",
+  color: "white",
+  border: "none",
+  padding: "12px 16px",
+  borderRadius: "10px",
+  fontWeight: "bold",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+};
+
+const shareStatusStyle = {
+  color: "#86efac",
+  marginTop: "12px",
+  fontWeight: "bold",
+};
+
 
 const deleteButton = {
   background: "#dc2626",
