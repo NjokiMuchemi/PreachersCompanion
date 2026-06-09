@@ -30,6 +30,7 @@ import { saveAs } from "file-saver";
 
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import AppModal from "../components/AppModal";
 
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -107,6 +108,7 @@ function Editor() {
   const [tagsInput, setTagsInput] = useState("");
   const [saveStatus, setSaveStatus] = useState("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [modal, setModal] = useState(null);
 
   const [aiAction, setAiAction] = useState("outline");
   const [aiPrompt, setAiPrompt] = useState("");
@@ -414,11 +416,13 @@ function Editor() {
     const maxImageSizeBytes = maxImageSizeKb * 1024;
 
     if (file.size > maxImageSizeBytes) {
-      alert(
-        `Image upload blocked.\n\nThis image is ${Math.round(
+      setModal({
+        icon: "⚠️",
+        title: "Image Upload Blocked",
+        message: `\n\nThis image is ${Math.round(
           file.size / 1024
-        )} KB, which is larger than the allowed ${maxImageSizeKb} KB.\n\nPlease compress the image, delete unused data, or contact admin for additional quota.\n\nAdmin contact: njokire@gmail.com`
-      );
+        )} KB, which is larger than the allowed ${maxImageSizeKb} KB.\n\nPlease compress the image, delete unused data, or contact admin for additional quota.\n\nAdmin contact: njokire@gmail.com`,
+      });
 
       event.target.value = "";
       return;
@@ -1024,7 +1028,31 @@ function Editor() {
           style={editorContentStyle}
         />
       </div>
-    </div>
+    
+      <AppModal
+        open={!!modal}
+        icon={modal?.icon}
+        title={modal?.title}
+        message={modal?.message}
+        onClose={() => setModal(null)}
+      >
+        <button
+          style={{
+            background: "#d9f99d",
+            color: "#0f172a",
+            border: "none",
+            padding: "14px",
+            borderRadius: "12px",
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+          onClick={() => setModal(null)}
+        >
+          OK
+        </button>
+      </AppModal>
+
+</div>
   );
 }
 
