@@ -11,7 +11,7 @@ function Preach() {
   const [loading, setLoading] = useState(true);
   const [fontSize, setFontSize] = useState(24);
   const [fullscreen, setFullscreen] = useState(false);
-  const [readingWidth, setReadingWidth] = useState("900px");
+  const [readingWidth, setReadingWidth] = useState("85%");
 
   useEffect(() => {
     fetchSermon();
@@ -75,15 +75,15 @@ function Preach() {
             A+
           </button>
 
-          <button style={secondaryControlButton} onClick={() => setReadingWidth("760px")}>
+          <button style={secondaryControlButton} onClick={() => setReadingWidth("70%")}>
             Narrow
           </button>
 
-          <button style={secondaryControlButton} onClick={() => setReadingWidth("900px")}>
+          <button style={secondaryControlButton} onClick={() => setReadingWidth("85%")}>
             Medium
           </button>
 
-          <button style={secondaryControlButton} onClick={() => setReadingWidth("1100px")}>
+          <button style={secondaryControlButton} onClick={() => setReadingWidth("95%")}>
             Wide
           </button>
 
