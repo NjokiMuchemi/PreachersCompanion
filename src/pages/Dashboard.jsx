@@ -286,9 +286,11 @@ function Dashboard() {
         "Content-Type": "application/json",
         Authorization: `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({
-        email: shareEmail.trim(),
-      }),
+ body: JSON.stringify({
+  email: shareEmail.trim(),
+  recipientEmail: shareEmail.trim(),
+  recipient_email: shareEmail.trim(),
+}),
     });
 
     const lookupData = await lookupResponse.json();
