@@ -17,62 +17,36 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import AppModal from "../components/AppModal";
-import brandLogo from "../assets/brand-logo.png";
 
 function Dashboard() {
-  const [storageInfo, setStorageInfo] = useState(null);
-  const [sharedSermons, setSharedSermons] = useState([]);
-  const [shareModalSermon, setShareModalSermon] = useState(null);
-  const [shareEmail, setShareEmail] = useState("");
-  const [shareStatus, setShareStatus] = useState("");
-  const [messageModal, setMessageModal] = useState(null);
-  const [trashModalSermon, setTrashModalSermon] = useState(null);
   const [sermons, setSermons] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [viewMode, setViewMode] = useState("grid");
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [selectedSermonId, setSelectedSermonId] = useState(null);
-  const [previewWidth, setPreviewWidth] = useState("320px");
-
+const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
 
-  
-  async function loadStorageUsage(userId) {
-    try {
-      const res = await fetch("/api/user-storage-usage", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
-      });
-      const data = await res.json();
-      setStorageInfo(data);
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
-useEffect(() => {
+  useEffect(() => {
     fetchSermons();
   }, []);
 
-  async function loadSharedSermons(userId) {
-    const { data, error } = await supabase
-      .from("sermon_shares")
-      .select(`
-        id,
-        created_at,
-        status,
-        sermon_id,
-        sender_id,
-        sermons(*)
-      `)
-      .eq("recipient_id", userId)
-      .eq("status", "pending")
-      .order("created_at", { ascending: false });
+  async function loadStorageUsage(userId) {
+    try {
+      const response = await fetch("/api/user-storage-usage", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userId }),
+      });
 
-    if (!error) {
-      setSharedSermons(data || []);
+      const data = await response.json();
+
+      if (response.ok) {
+        setStorageInfo(data);
+      }
+    } catch (error) {
+      console.error("Could not load storage usage", error);
     }
   }
 
@@ -85,18 +59,13 @@ useEffect(() => {
       navigate("/");
       return;
     }
+const { data: adminData } = await supabase
+  .from("admin_users")
+  .select("id")
+  .eq("id", user.id)
+  .single();
 
-    loadStorageUsage(user.id);
-    loadSharedSermons(user.id);
-
-    const { data: adminData } = await supabase
-      .from("admin_users")
-      .select("id")
-      .eq("id", user.id)
-      .single();
-
-    setIsAdmin(!!adminData);
-
+setIsAdmin(!!adminData);
     const { data, error } = await supabase
       .from("sermons")
       .select("*")
@@ -109,126 +78,6 @@ useEffect(() => {
     }
 
     setSermons(data || []);
-  }
-
-  async function renameCategory(oldCategory) {
-    const newCategory = prompt(
-      `Rename category "${oldCategory}" to:`,
-      oldCategory
-    );
-
-    if (!newCategory || !newCategory.trim()) return;
-
-    const cleanCategory = newCategory.trim();
-
-    if (cleanCategory === oldCategory) return;
-
-    const confirmRename = window.confirm(
-      `Rename all sermons in "${oldCategory}" to "${cleanCategory}"?`
-    );
-
-    if (!confirmRename) return;
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) return;
-
-    const affectedSermons = sermons.filter(
-      (sermon) => (sermon.category || "Uncategorized") === oldCategory
-    );
-
-    const affectedIds = affectedSermons.map((sermon) => sermon.id);
-
-    if (affectedIds.length === 0) {
-      alert("No sermons found in this category.");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("sermons")
-      .update({
-        category: cleanCategory,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("user_id", user.id)
-      .in("id", affectedIds);
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    setSermons((current) =>
-      current.map((sermon) =>
-        affectedIds.includes(sermon.id)
-          ? { ...sermon, category: cleanCategory }
-          : sermon
-      )
-    );
-
-    await fetchSermons();
-
-    alert(`Category renamed to "${cleanCategory}" successfully.`);
-  }
-
-  async function logout() {
-    await supabase.auth.signOut();
-    navigate("/");
-  }
-
-  async function toggleFavorite(sermon) {
-    const { error } = await supabase
-      .from("sermons")
-      .update({ is_favorite: !sermon.is_favorite })
-      .eq("id", sermon.id);
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    await fetchSermons();
-  }
-
-  function moveToTrash(sermon) {
-    setTrashModalSermon(sermon);
-  }
-
-  async function confirmMoveToTrash() {
-    if (!trashModalSermon) return;
-
-    const { error } = await supabase
-      .from("sermons")
-      .update({ is_deleted: true })
-      .eq("id", trashModalSermon.id);
-
-    if (error) {
-      setMessageModal({
-        icon: "⚠️",
-        title: "Could Not Move to Trash",
-        message: error.message,
-      });
-      return;
-    }
-
-    setTrashModalSermon(null);
-    await fetchSermons();
-  }
-
-  async function restoreSermon(sermon) {
-    const { error } = await supabase
-      .from("sermons")
-      .update({ is_deleted: false })
-      .eq("id", sermon.id);
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    await fetchSermons();
   }
 
 
@@ -333,65 +182,79 @@ useEffect(() => {
     });
   }
 
-  async function dismissSharedSermon(shareId) {
-    const { error } = await supabase
-      .from("sermon_shares")
-      .update({ status: "dismissed" })
-      .eq("id", shareId);
+  async function renameCategory(oldCategory) {
+    const newCategory = prompt(
+      `Rename category "${oldCategory}" to:`,
+      oldCategory
+    );
 
-    if (error) {
-      setMessageModal({
-        icon: "⚠️",
-        title: "Could Not Dismiss",
-        message: error.message,
-      });
-      return;
-    }
+    if (!newCategory || !newCategory.trim()) return;
 
-    setSharedSermons((current) => current.filter((share) => share.id !== shareId));
-  }
+    const cleanCategory = newCategory.trim();
 
-  async function saveSharedSermon(share) {
+    const confirmRename = window.confirm(
+      `Rename all sermons in "${oldCategory}" to "${cleanCategory}"?`
+    );
+
+    if (!confirmRename) return;
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user || !share?.sermons) return;
+    if (!user) return;
 
-    const sermon = share.sermons;
-
-    const { error } = await supabase.from("sermons").insert([
-      {
-        user_id: user.id,
-        title: sermon.title,
-        category: sermon.category,
-        scripture: sermon.scripture,
-        tags: sermon.tags,
-        content: sermon.content,
-        is_favorite: false,
-        is_deleted: false,
-      },
-    ]);
+    const { error } = await supabase
+      .from("sermons")
+      .update({
+        category: cleanCategory,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", user.id)
+      .eq("category", oldCategory);
 
     if (error) {
-      setMessageModal({
-        icon: "⚠️",
-        title: "Could Not Save",
-        message: error.message,
-      });
+      alert(error.message);
       return;
     }
 
-    await dismissSharedSermon(share.id);
-    await fetchSermons();
-
-    setMessageModal({
-      icon: "✅",
-      title: "Saved To Your Library",
-      message: "The shared sermon has been copied into your sermon library.",
-    });
+    fetchSermons();
   }
 
+  async function logout() {
+    await supabase.auth.signOut();
+    navigate("/");
+  }
+
+  async function toggleFavorite(sermon) {
+    await supabase
+      .from("sermons")
+      .update({ is_favorite: !sermon.is_favorite })
+      .eq("id", sermon.id);
+
+    fetchSermons();
+  }
+
+  async function moveToTrash(sermon) {
+    const confirmTrash = window.confirm("Move this sermon to Trash?");
+    if (!confirmTrash) return;
+
+    await supabase
+      .from("sermons")
+      .update({ is_deleted: true })
+      .eq("id", sermon.id);
+
+    fetchSermons();
+  }
+
+  async function restoreSermon(sermon) {
+    await supabase
+      .from("sermons")
+      .update({ is_deleted: false })
+      .eq("id", sermon.id);
+
+    fetchSermons();
+  }
 
   let displayedSermons = sermons;
 
@@ -417,7 +280,6 @@ useEffect(() => {
 
   const filteredSermons = displayedSermons.filter((sermon) => {
     const search = searchTerm.toLowerCase();
-    const tagsText = Array.isArray(sermon.tags) ? sermon.tags.join(" ") : "";
 
     const totalSermonsCount = sermons.filter((s) => !s.is_deleted).length;
 
@@ -435,9 +297,7 @@ useEffect(() => {
   return (
       sermon.title?.toLowerCase().includes(search) ||
       sermon.category?.toLowerCase().includes(search) ||
-      sermon.scripture?.toLowerCase().includes(search) ||
-      sermon.content?.toLowerCase().includes(search) ||
-      tagsText.toLowerCase().includes(search)
+      sermon.scripture?.toLowerCase().includes(search)
     );
   });
 
@@ -452,35 +312,13 @@ useEffect(() => {
     return groups;
   }, {});
 
-  const selectedSermon =
-    filteredSermons.find((sermon) => sermon.id === selectedSermonId) ||
-    filteredSermons[0];
-
   return (
     <div style={pageStyle}>
       <aside style={sidebarStyle}>
-        <div style={brandBox}>
-          <img
-            src={brandLogo}
-            alt="Preacher's Companion logo"
-            style={brandLogoStyle}
-          />
+        <h2>Preacher&apos;s Companion</h2>
+        <p style={mutedText}>Sermon Workspace</p>
 
-          <h2 style={brandTitle}>PREACHER&apos;S COMPANION</h2>
-          <p style={brandTagline}>From Revelation to Proclamation</p>
-          <p style={brandVerse}>
-            “He who has my word, let him speak my word faithfully.”
-            <br />
-            Jer. 23:28
-          </p>
-          <p style={poweredBy}>
-            Powered by Nebkona Investors Ltd
-            <br />
-            Technologies Division @2026
-          </p>
-        </div>
-
-        <nav style={{ marginTop: "35px" }}>
+        <nav style={{ marginTop: "40px" }}>
           <p style={getNavStyle(activeTab === "all")} onClick={() => setActiveTab("all")}>
             All Sermons
           </p>
@@ -493,6 +331,10 @@ useEffect(() => {
             Favorites
           </p>
 
+          <p style={getNavStyle(activeTab === "shared")} onClick={() => setActiveTab("shared")}>
+            Shared With Me {sharedSermons.length > 0 ? `(${sharedSermons.length})` : ""}
+          </p>
+
           <p style={getNavStyle(activeTab === "trash")} onClick={() => setActiveTab("trash")}>
             Trash
           </p>
@@ -501,17 +343,45 @@ useEffect(() => {
             <Settings size={16} />
             Settings
           </p>
-
-          {isAdmin && (
-            <p style={getNavStyle(false)} onClick={() => navigate("/admin")}>
-              Admin
-            </p>
-          )}
-
+{isAdmin && (
+  <p style={getNavStyle(false)} onClick={() => navigate("/admin")}>
+    Admin
+  </p>
+)}
           <p style={logoutNavStyle} onClick={logout}>
             <LogOut size={16} />
             Logout
           </p>
+
+          {storageInfo && (
+            <div style={sidebarStorageCardStyle}>
+              <div style={sidebarStorageHeaderStyle}>
+                <span>Storage</span>
+                <strong>{storageInfo.used_mb} / {storageInfo.limit_mb} MB</strong>
+              </div>
+
+              <div style={sidebarStorageBarOuter}>
+                <div
+                  style={{
+                    ...sidebarStorageBarInner,
+                    width: `${Math.min(storageInfo.percent_used || 0, 100)}%`,
+                    background:
+                      (storageInfo.percent_used || 0) >= 90
+                        ? "#ef4444"
+                        : (storageInfo.percent_used || 0) >= 70
+                        ? "#d4a017"
+                        : "#86efac",
+                  }}
+                />
+              </div>
+
+              <p style={sidebarStorageTextStyle}>{storageInfo.remaining_mb} MB left</p>
+              <p style={sidebarStorageTextStyle}>
+                Approx. {storageInfo.approximate_sermons_remaining} sermons left
+              </p>
+            </div>
+          )}
+
         </nav>
       </aside>
 
@@ -531,7 +401,6 @@ useEffect(() => {
           <div style={topActions}>
             <div style={viewToggle}>
               <button
-                title="Grid view"
                 style={viewMode === "grid" ? activeViewButton : viewButton}
                 onClick={() => setViewMode("grid")}
               >
@@ -539,19 +408,10 @@ useEffect(() => {
               </button>
 
               <button
-                title="List view"
                 style={viewMode === "list" ? activeViewButton : viewButton}
                 onClick={() => setViewMode("list")}
               >
                 <List size={18} />
-              </button>
-
-              <button
-                title="Preview view"
-                style={viewMode === "preview" ? activeViewButton : viewButton}
-                onClick={() => setViewMode("preview")}
-              >
-                Preview
               </button>
             </div>
 
@@ -583,33 +443,23 @@ useEffect(() => {
         <div style={searchBoxStyle}>
           <Search size={20} />
           <input
-            placeholder="Search sermons, scriptures, categories or tags..."
+            placeholder="Search sermons, scriptures or categories..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={searchInputStyle}
           />
         </div>
 
-        {viewMode === "preview" ? (
-          <PreviewLayout
-            sermons={filteredSermons}
-            previewWidth={previewWidth}
-            setPreviewWidth={setPreviewWidth}
-            selectedSermon={selectedSermon}
-            selectedSermonId={selectedSermon?.id}
-            setSelectedSermonId={setSelectedSermonId}
-            activeTab={activeTab}
-            navigate={navigate}
-            toggleFavorite={toggleFavorite}
-            moveToTrash={moveToTrash}
-            restoreSermon={restoreSermon}
-          />
-        ) : activeTab === "categories" ? (
+        {activeTab === "shared" && sharedSermons.length === 0 && (
+          <p style={emptyText}>No sermons have been shared with you yet.</p>
+        )}
+
+        {activeTab === "categories" ? (
           Object.keys(groupedByCategory).length > 0 ? (
             Object.keys(groupedByCategory).map((category) => (
               <div key={category} style={{ marginBottom: "35px" }}>
                 <div style={categoryHeader}>
-                  <h2 style={{ color: "#d4a017", margin: 0 }}>{category}</h2>
+                  <h2 style={{ color: "#f59e0b", margin: 0 }}>{category}</h2>
 
                   <button
                     style={renameCategoryButton}
@@ -632,7 +482,6 @@ useEffect(() => {
                       moveToTrash={moveToTrash}
                       restoreSermon={restoreSermon}
                   openShareModal={openShareModal}
-                      openShareModal={openShareModal}
                     />
                   ))}
                 </div>
@@ -641,7 +490,7 @@ useEffect(() => {
           ) : (
             <p style={emptyText}>No sermons found.</p>
           )
-        ) : (
+        ) : activeTab === "shared" ? null : (
           <div style={viewMode === "grid" ? gridStyle : listStyle}>
             {filteredSermons.length > 0 ? (
               filteredSermons.map((sermon) => (
@@ -694,25 +543,6 @@ useEffect(() => {
       </AppModal>
 
       <AppModal
-        open={!!trashModalSermon}
-        icon="🗑️"
-        title="Move Sermon to Trash?"
-        message={`Move "${trashModalSermon?.title || "this sermon"}" to Trash? You can restore it later from the Trash section.`}
-        onClose={() => setTrashModalSermon(null)}
-      >
-        <button style={deleteConfirmButtonStyle} onClick={confirmMoveToTrash}>
-          Move to Trash
-        </button>
-
-        <button
-          style={cancelModalButtonStyle}
-          onClick={() => setTrashModalSermon(null)}
-        >
-          Cancel
-        </button>
-      </AppModal>
-
-      <AppModal
         open={!!messageModal}
         icon={messageModal?.icon}
         title={messageModal?.title}
@@ -727,153 +557,6 @@ useEffect(() => {
   );
 }
 
-function PreviewLayout({
-  sermons,
-  previewWidth,
-  setPreviewWidth,
-  selectedSermon,
-  selectedSermonId,
-  setSelectedSermonId,
-  activeTab,
-  navigate,
-  toggleFavorite,
-  moveToTrash,
-  restoreSermon,
-  openShareModal,
-}) {
-  if (!sermons.length) {
-    return <p style={emptyText}>No sermons found.</p>;
-  }
-
-  return (
-    <>
-      <div style={previewResizeControls}>
-        <button style={smallButton} onClick={() => setPreviewWidth("250px")}>
-          Narrow
-        </button>
-
-        <button style={smallButton} onClick={() => setPreviewWidth("320px")}>
-          Normal
-        </button>
-
-        <button style={smallButton} onClick={() => setPreviewWidth("450px")}>
-          Wide
-        </button>
-      </div>
-
-      <div
-        style={{
-          ...previewLayoutStyle,
-          gridTemplateColumns: `${previewWidth} 1fr`,
-        }}
-      >
-      <div style={previewListStyle}>
-        <h3 style={previewListHeading}>Sermon List</h3>
-
-        {sermons.map((sermon) => (
-          <div
-            key={sermon.id}
-            style={
-              sermon.id === selectedSermonId
-                ? activePreviewItemStyle
-                : previewItemStyle
-            }
-            onClick={() => setSelectedSermonId(sermon.id)}
-          >
-            <strong>{sermon.title || "Untitled Sermon"}</strong>
-            <p style={previewItemMeta}>{sermon.category || "Uncategorized"}</p>
-            <p style={previewItemMeta}>{sermon.scripture || "-"}</p>
-          </div>
-        ))}
-      </div>
-
-      <div style={previewDetailStyle}>
-        {selectedSermon ? (
-          <>
-            <BookOpen color="#d4a017" size={34} />
-
-            <h2 style={previewTitleStyle}>
-              {selectedSermon.title || "Untitled Sermon"}
-            </h2>
-
-            <div style={metadataRowStyle}>
-              <span style={metadataBadge}>Category: {selectedSermon.category || "Uncategorized"}</span>
-              <span style={metadataBadge}>Scripture: {selectedSermon.scripture || "-"}</span>
-            </div>
-
-            {Array.isArray(selectedSermon.tags) && selectedSermon.tags.length > 0 && (
-              <div style={tagRowStyle}>
-                {selectedSermon.tags.map((tag) => (
-                  <span key={tag} style={tagBadgeStyle}>
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            <div style={buttonRow}>
-              {activeTab !== "trash" ? (
-                <>
-                  <button
-                    style={smallButton}
-                    onClick={() => navigate(`/editor/${selectedSermon.id}`)}
-                  >
-                    Edit
-                  </button>
-
-                  <button
-                    style={preachButton}
-                    onClick={() => navigate(`/preach/${selectedSermon.id}`)}
-                  >
-                    Preach
-                  </button>
-
-                  <button
-                    style={favoriteButton}
-                    onClick={() => toggleFavorite(selectedSermon)}
-                  >
-                    <Star
-                      size={16}
-                      fill={selectedSermon.is_favorite ? "#d4a017" : "none"}
-                    />
-                  </button>
-
-                  <button
-                    style={trashButton}
-                    onClick={() => moveToTrash(selectedSermon)}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </>
-              ) : (
-                <button
-                  style={restoreButton}
-                  onClick={() => restoreSermon(selectedSermon)}
-                >
-                  <RotateCcw size={16} />
-                  Restore
-                </button>
-              )}
-            </div>
-
-            <div
-              style={sermonPreviewContentStyle}
-              dangerouslySetInnerHTML={{
-                __html:
-                  selectedSermon.content ||
-                  "<p>No sermon content available.</p>",
-              }}
-            />
-          </>
-        ) : (
-          <p style={emptyText}>Select a sermon to view details.</p>
-        )}
-      </div>
-    </div>
-    </>
-  );
-}
-
 function SermonCard({
   sermon,
   viewMode,
@@ -882,6 +565,7 @@ function SermonCard({
   toggleFavorite,
   moveToTrash,
   restoreSermon,
+  openShareModal,
 }) {
   return (
     <div
@@ -893,20 +577,10 @@ function SermonCard({
       }}
     >
       <div style={{ flex: 1 }}>
-        <BookOpen color="#d4a017" size={28} />
+        <BookOpen color="#f59e0b" size={28} />
         <h3>{sermon.title}</h3>
         <p style={mutedText}>{sermon.category || "Uncategorized"}</p>
         <p style={{ color: "#cbd5e1" }}>{sermon.scripture}</p>
-
-        {Array.isArray(sermon.tags) && sermon.tags.length > 0 && (
-          <div style={tagRowStyle}>
-            {sermon.tags.map((tag) => (
-              <span key={tag} style={tagBadgeStyle}>
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
 
       {activeTab !== "trash" ? (
@@ -932,13 +606,23 @@ function SermonCard({
           </button>
 
           <button
+            style={shareSmallButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              openShareModal(sermon);
+            }}
+          >
+            <Share2 size={16} />
+          </button>
+
+          <button
             style={favoriteButton}
             onClick={(e) => {
               e.stopPropagation();
               toggleFavorite(sermon);
             }}
           >
-            <Star size={16} fill={sermon.is_favorite ? "#d4a017" : "none"} />
+            <Star size={16} fill={sermon.is_favorite ? "#f59e0b" : "none"} />
           </button>
 
           <button
@@ -976,67 +660,19 @@ const pageStyle = {
 };
 
 const sidebarStyle = {
-  width: "280px",
+  width: "260px",
   background: "#0f172a",
   padding: "30px",
   borderRight: "1px solid #1e293b",
 };
 
-const brandBox = {
-  background:
-    "linear-gradient(180deg, rgba(17,24,39,0.98), rgba(2,6,23,0.98))",
-  border: "1px solid rgba(212,160,23,0.35)",
-  borderRadius: "18px",
-  padding: "18px",
-  textAlign: "center",
-  boxShadow: "0 16px 35px rgba(0,0,0,0.25)",
-};
-
-const brandLogoStyle = {
-  width: "92px",
-  height: "70px",
-  objectFit: "contain",
-  display: "block",
-  margin: "0 auto 10px",
-  borderRadius: "14px",
-};
-
-const brandTitle = {
-  color: "#d4a017",
-  margin: 0,
-  fontSize: "20px",
-  lineHeight: "1.1",
-  fontWeight: "900",
-};
-
-const brandTagline = {
-  color: "white",
-  fontSize: "13px",
-  fontWeight: "bold",
-  marginTop: "10px",
-};
-
-const brandVerse = {
-  color: "#cbd5e1",
-  fontSize: "12px",
-  lineHeight: "1.5",
-  fontStyle: "italic",
-};
-
-const poweredBy = {
-  color: "#64748b",
-  fontSize: "11px",
-  lineHeight: "1.5",
-  marginTop: "12px",
-};
-
-const mainStyle = { flex: 1, padding: "40px", overflow: "hidden" };
+const mainStyle = { flex: 1, padding: "40px" };
 const mutedText = { color: "#94a3b8" };
 
 const getNavStyle = (active) => ({
   padding: "12px",
   color: active ? "#000" : "#cbd5e1",
-  background: active ? "#d4a017" : "transparent",
+  background: active ? "#f59e0b" : "transparent",
   borderRadius: "10px",
   cursor: "pointer",
   fontWeight: active ? "bold" : "normal",
@@ -1089,13 +725,12 @@ const viewButton = {
 
 const activeViewButton = {
   ...viewButton,
-  background: "#d4a017",
+  background: "#f59e0b",
   color: "#000",
-  fontWeight: "bold",
 };
 
 const newButtonStyle = {
-  background: "#d4a017",
+  background: "#f59e0b",
   color: "#000",
   padding: "12px 18px",
   borderRadius: "10px",
@@ -1197,7 +832,7 @@ const smallButton = {
 };
 
 const preachButton = {
-  background: "#d4a017",
+  background: "#f59e0b",
   color: "#000",
   border: "none",
   padding: "8px 12px",
@@ -1208,7 +843,7 @@ const preachButton = {
 
 const favoriteButton = {
   background: "#1e293b",
-  color: "#d4a017",
+  color: "#f59e0b",
   border: "1px solid #334155",
   padding: "8px 12px",
   borderRadius: "8px",
@@ -1238,114 +873,6 @@ const restoreButton = {
   display: "flex",
   alignItems: "center",
   gap: "6px",
-};
-
-const tagRowStyle = {
-  display: "flex",
-  gap: "8px",
-  flexWrap: "wrap",
-  marginTop: "10px",
-};
-
-const tagBadgeStyle = {
-  background: "#1e293b",
-  border: "1px solid #334155",
-  color: "#d4a017",
-  padding: "6px 10px",
-  borderRadius: "999px",
-  fontWeight: "bold",
-  fontSize: "12px",
-};
-
-const previewLayoutStyle = {
-  display: "grid",
-  gridTemplateColumns: "320px 1fr",
-  gap: "20px",
-  minHeight: "620px",
-};
-
-const previewResizeControls = {
-  display: "flex",
-  gap: "10px",
-  marginBottom: "15px",
-  flexWrap: "wrap",
-};
-
-const previewListStyle = {
-  background: "#0f172a",
-  border: "1px solid #1e293b",
-  borderRadius: "16px",
-  padding: "15px",
-  maxHeight: "720px",
-  overflowY: "auto",
-};
-
-const previewListHeading = {
-  color: "#d4a017",
-  marginTop: 0,
-};
-
-const previewItemStyle = {
-  padding: "14px",
-  borderRadius: "12px",
-  border: "1px solid #1e293b",
-  marginBottom: "10px",
-  cursor: "pointer",
-  background: "#020617",
-};
-
-const activePreviewItemStyle = {
-  ...previewItemStyle,
-  background: "#1e293b",
-  border: "1px solid #d4a017",
-};
-
-const previewItemMeta = {
-  color: "#94a3b8",
-  margin: "6px 0 0",
-  fontSize: "13px",
-};
-
-const previewDetailStyle = {
-  background: "#0f172a",
-  border: "1px solid #1e293b",
-  borderRadius: "16px",
-  padding: "25px",
-  maxHeight: "720px",
-  overflowY: "auto",
-};
-
-const previewTitleStyle = {
-  fontSize: "34px",
-  lineHeight: "1.15",
-  marginBottom: "15px",
-};
-
-const metadataRowStyle = {
-  display: "flex",
-  gap: "10px",
-  flexWrap: "wrap",
-  marginBottom: "10px",
-};
-
-const metadataBadge = {
-  background: "#020617",
-  border: "1px solid #334155",
-  color: "#cbd5e1",
-  padding: "8px 10px",
-  borderRadius: "8px",
-  fontSize: "14px",
-};
-
-const sermonPreviewContentStyle = {
-  background: "#020617",
-  border: "1px solid #334155",
-  borderRadius: "12px",
-  padding: "20px",
-  marginTop: "20px",
-  color: "#e5e7eb",
-  lineHeight: "1.8",
-  fontSize: "16px",
 };
 
 const emptyText = {
@@ -1379,6 +906,47 @@ const statsLabelStyle = {
   color: "#94a3b8",
   fontSize: "14px",
   marginTop: "6px",
+};
+
+const sidebarStorageCardStyle = {
+  marginTop: "22px",
+  background: "#020617",
+  border: "1px solid rgba(134, 239, 172, 0.35)",
+  borderRadius: "14px",
+  padding: "12px",
+  color: "#e5e7eb",
+};
+
+const sidebarStorageHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "8px",
+  fontSize: "13px",
+  marginBottom: "10px",
+  color: "#d9f99d",
+};
+
+const sidebarStorageBarOuter = {
+  height: "8px",
+  background: "#0f172a",
+  borderRadius: "999px",
+  overflow: "hidden",
+  border: "1px solid #1e293b",
+  marginBottom: "8px",
+};
+
+const sidebarStorageBarInner = {
+  height: "100%",
+  borderRadius: "999px",
+  transition: "width 0.3s ease",
+};
+
+const sidebarStorageTextStyle = {
+  margin: "4px 0 0",
+  color: "#94a3b8",
+  fontSize: "12px",
+  lineHeight: "1.35",
 };
 
 const shareSmallButton = {
@@ -1419,16 +987,6 @@ const shareModalButtonStyle = {
   cursor: "pointer",
 };
 
-const deleteConfirmButtonStyle = {
-  background: "#dc2626",
-  color: "white",
-  border: "none",
-  padding: "12px 18px",
-  borderRadius: "10px",
-  fontWeight: "bold",
-  cursor: "pointer",
-};
-
 const cancelModalButtonStyle = {
   background: "#1e293b",
   color: "white",
@@ -1437,12 +995,6 @@ const cancelModalButtonStyle = {
   borderRadius: "10px",
   fontWeight: "bold",
   cursor: "pointer",
-};
-
-const sharedDateStyle = {
-  color: "#94a3b8",
-  fontSize: "13px",
-  marginTop: "10px",
 };
 
 
