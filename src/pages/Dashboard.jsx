@@ -254,7 +254,7 @@ const categoriesCount = new Set(
 ).size;
 
 const favoritesCount = sermons.filter(
-  (s) => !s.deleted_at && s.favorite
+  (s) => !s.deleted_at && (s.is_favorite || s.favorite)
 ).length;
   return (
     <div style={pageStyle}>
