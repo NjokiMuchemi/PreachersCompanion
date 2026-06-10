@@ -242,7 +242,20 @@ function Dashboard() {
     groups[category].push(sermon);
     return groups;
   }, {});
+const totalSermonsCount = sermons.filter(
+  (s) => !s.deleted_at
+).length;
 
+const categoriesCount = new Set(
+  sermons
+    .filter((s) => !s.deleted_at)
+    .map((s) => s.category)
+    .filter(Boolean)
+).size;
+
+const favoritesCount = sermons.filter(
+  (s) => !s.deleted_at && s.favorite
+).length;
   return (
     <div style={pageStyle}>
       <aside style={sidebarStyle}>
@@ -371,7 +384,22 @@ function Dashboard() {
             </Link>
           </div>
         </div>
+<div style={statsRowStyle}>
+  <div style={statsCardStyle}>
+    <div style={statsNumberStyle}>{totalSermonsCount}</div>
+    <div style={statsLabelStyle}>Total Sermons</div>
+  </div>
 
+  <div style={statsCardStyle}>
+    <div style={statsNumberStyle}>{categoriesCount}</div>
+    <div style={statsLabelStyle}>Categories</div>
+  </div>
+
+  <div style={statsCardStyle}>
+    <div style={statsNumberStyle}>{favoritesCount}</div>
+    <div style={statsLabelStyle}>Favorites</div>
+  </div>
+</div>
         <div style={searchBoxStyle}>
           <Search size={20} />
           <input
@@ -894,5 +922,31 @@ const cancelModalButtonStyle = {
   cursor: "pointer",
 };
 
+const statsRowStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(3, 1fr)",
+  gap: "16px",
+  marginBottom: "20px",
+};
+
+const statsCardStyle = {
+  background: "#0f172a",
+  border: "1px solid #1e293b",
+  borderRadius: "14px",
+  padding: "18px",
+  textAlign: "center",
+};
+
+const statsNumberStyle = {
+  color: "#f59e0b",
+  fontSize: "32px",
+  fontWeight: "bold",
+};
+
+const statsLabelStyle = {
+  color: "#94a3b8",
+  fontSize: "14px",
+  marginTop: "6px",
+};
 
 export default Dashboard;
