@@ -11,6 +11,7 @@ import {
   LayoutGrid,
   List,
   Edit3,
+  Share2,
 } from "lucide-react";
 
 import { Link, useNavigate } from "react-router-dom";
@@ -25,6 +26,11 @@ function Dashboard() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [storageInfo, setStorageInfo] = useState(null);
   const [trashModalSermon, setTrashModalSermon] = useState(null);
+  const [sharedSermons, setSharedSermons] = useState([]);
+  const [shareModalSermon, setShareModalSermon] = useState(null);
+  const [shareEmail, setShareEmail] = useState("");
+  const [shareStatus, setShareStatus] = useState("");
+  const [messageModal, setMessageModal] = useState(null);
 
   const navigate = useNavigate();
 
@@ -52,6 +58,31 @@ function Dashboard() {
     }
   }
 
+
+  async function loadSharedSermons(userId) {
+    const { data, error } = await supabase
+      .from("sermon_shares")
+      .select(`
+        id,
+        created_at,
+        status,
+        sermon_id,
+        sender_id,
+        sermons(*)
+      `)
+      .eq("recipient_id", userId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Could not load shared sermons", error.message);
+      setSharedSermons([]);
+      return;
+    }
+
+    setSharedSermons(data || []);
+  }
+
   async function fetchSermons() {
     const {
       data: { user },
@@ -63,6 +94,7 @@ function Dashboard() {
     }
 
     loadStorageUsage(user.id);
+    loadSharedSermons(user.id);
 
     const { data: adminData } = await supabase
       .from("admin_users")
@@ -80,7 +112,7 @@ function Dashboard() {
 
     if (error) {
       alert(error.message);
-      return;8
+      return;
     }
 
     setSermons(data || []);
@@ -201,6 +233,168 @@ function Dashboard() {
     await fetchSermons();
   }
 
+
+  function openShareModal(sermon) {
+    setShareModalSermon(sermon);
+    setShareEmail("");
+    setShareStatus("");
+  }
+
+  async function handleDashboardShare() {
+    if (!shareModalSermon) return;
+
+    if (!shareEmail.trim()) {
+      setMessageModal({
+        icon: "⚠️",
+        title: "Recipient Email Required",
+        message: "Please enter the recipient's login email.",
+      });
+      return;
+    }
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!user || !session) {
+      setMessageModal({
+        icon: "⚠️",
+        title: "Login Required",
+        message: "You must be logged in to share sermons.",
+      });
+      return;
+    }
+
+    if (shareEmail.trim().toLowerCase() === user.email?.toLowerCase()) {
+      setMessageModal({
+        icon: "⚠️",
+        title: "Invalid Recipient",
+        message: "You cannot share a sermon with yourself.",
+      });
+      return;
+    }
+
+    setShareStatus("Checking recipient...");
+
+    const lookupResponse = await fetch("/api/find-user-by-email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        email: shareEmail.trim(),
+      }),
+    });
+
+    const lookupData = await lookupResponse.json();
+
+    if (!lookupResponse.ok) {
+      setShareStatus("");
+      setMessageModal({
+        icon: "⚠️",
+        title: "Recipient Not Found",
+        message: lookupData.error || "Recipient not found.",
+      });
+      return;
+    }
+
+    setShareStatus("Sharing sermon...");
+
+    const { error } = await supabase.from("sermon_shares").insert([
+      {
+        sender_id: user.id,
+        recipient_id: lookupData.user.id,
+        sermon_id: shareModalSermon.id,
+        status: "pending",
+      },
+    ]);
+
+    if (error) {
+      setShareStatus("");
+      setMessageModal({
+        icon: "⚠️",
+        title: "Share Failed",
+        message: error.message,
+      });
+      return;
+    }
+
+    setShareModalSermon(null);
+    setShareEmail("");
+    setShareStatus("");
+
+    setMessageModal({
+      icon: "✅",
+      title: "Sermon Shared",
+      message: "Sermon shared successfully.",
+    });
+  }
+
+  async function dismissSharedSermon(shareId) {
+    const { error } = await supabase
+      .from("sermon_shares")
+      .update({ status: "dismissed" })
+      .eq("id", shareId);
+
+    if (error) {
+      setMessageModal({
+        icon: "⚠️",
+        title: "Could Not Dismiss",
+        message: error.message,
+      });
+      return;
+    }
+
+    setSharedSermons((current) => current.filter((share) => share.id !== shareId));
+  }
+
+  async function saveSharedSermon(share) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user || !share?.sermons) return;
+
+    const sermon = share.sermons;
+
+    const { error } = await supabase.from("sermons").insert([
+      {
+        user_id: user.id,
+        title: sermon.title,
+        category: sermon.category,
+        scripture: sermon.scripture,
+        tags: sermon.tags,
+        content: sermon.content,
+        is_favorite: false,
+        is_deleted: false,
+      },
+    ]);
+
+    if (error) {
+      setMessageModal({
+        icon: "⚠️",
+        title: "Could Not Save",
+        message: error.message,
+      });
+      return;
+    }
+
+    await dismissSharedSermon(share.id);
+    await fetchSermons();
+
+    setMessageModal({
+      icon: "✅",
+      title: "Saved To Your Library",
+      message: "The shared sermon has been copied into your sermon library.",
+    });
+  }
+
+
   let displayedSermons = sermons;
 
   if (activeTab === "all") {
@@ -213,6 +407,10 @@ function Dashboard() {
 
   if (activeTab === "trash") {
     displayedSermons = sermons.filter((s) => s.is_deleted);
+  }
+
+  if (activeTab === "shared") {
+    displayedSermons = [];
   }
 
   if (activeTab === "categories") {
@@ -243,18 +441,18 @@ function Dashboard() {
     return groups;
   }, {});
 const totalSermonsCount = sermons.filter(
-  (s) => !s.deleted_at
+  (s) => !s.is_deleted
 ).length;
 
 const categoriesCount = new Set(
   sermons
-    .filter((s) => !s.deleted_at)
+    .filter((s) => !s.is_deleted)
     .map((s) => s.category)
     .filter(Boolean)
 ).size;
 
 const favoritesCount = sermons.filter(
-  (s) => !s.deleted_at && (s.is_favorite || s.favorite)
+  (s) => !s.is_deleted && (s.is_favorite || s.favorite)
 ).length;
   return (
     <div style={pageStyle}>
@@ -289,6 +487,13 @@ const favoritesCount = sermons.filter(
             onClick={() => setActiveTab("favorites")}
           >
             Favorites
+          </p>
+
+          <p
+            style={getNavStyle(activeTab === "shared")}
+            onClick={() => setActiveTab("shared")}
+          >
+            Shared With Me {sharedSermons.length > 0 ? `(${sharedSermons.length})` : ""}
           </p>
 
           <p
@@ -356,6 +561,7 @@ const favoritesCount = sermons.filter(
               {activeTab === "all" && "My Sermons"}
               {activeTab === "categories" && "Categories"}
               {activeTab === "favorites" && "Favorite Sermons"}
+              {activeTab === "shared" && "Shared With Me"}
               {activeTab === "trash" && "Trash"}
             </h1>
             <p style={subtitleStyle}>Organize and access your ministry notes.</p>
@@ -410,7 +616,39 @@ const favoritesCount = sermons.filter(
           />
         </div>
 
-        {activeTab === "categories" ? (
+
+        {activeTab === "shared" ? (
+          sharedSermons.length > 0 ? (
+            <div style={viewMode === "grid" ? gridStyle : listStyle}>
+              {sharedSermons.map((share) => (
+                <div key={share.id} style={viewMode === "grid" ? cardStyle : listCardStyle}>
+                  <div style={{ flex: 1 }}>
+                    <BookOpen color="#f59e0b" size={28} />
+                    <h3>{share.sermons?.title || "Untitled Sermon"}</h3>
+                    <p style={mutedText}>{share.sermons?.category || "Shared Sermon"}</p>
+                    <p style={{ color: "#cbd5e1" }}>{share.sermons?.scripture || ""}</p>
+                    <p style={sharedDateStyle}>
+                      Shared on {new Date(share.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+
+                  <div style={buttonRow}>
+                    <button style={preachButton} onClick={() => saveSharedSermon(share)}>
+                      Save To My Library
+                    </button>
+
+                    <button style={smallButton} onClick={() => dismissSharedSermon(share.id)}>
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={emptyText}>No sermons have been shared with you yet.</p>
+          )
+        ) : activeTab === "categories" ? (
+
           Object.keys(groupedByCategory).length > 0 ? (
             Object.keys(groupedByCategory).map((category) => (
               <div key={category} style={{ marginBottom: "35px" }}>
@@ -437,6 +675,7 @@ const favoritesCount = sermons.filter(
                       toggleFavorite={toggleFavorite}
                       moveToTrash={moveToTrash}
                       restoreSermon={restoreSermon}
+                  openShareModal={openShareModal}
                     />
                   ))}
                 </div>
@@ -458,6 +697,7 @@ const favoritesCount = sermons.filter(
                   toggleFavorite={toggleFavorite}
                   moveToTrash={moveToTrash}
                   restoreSermon={restoreSermon}
+                  openShareModal={openShareModal}
                 />
               ))
             ) : (
@@ -466,6 +706,48 @@ const favoritesCount = sermons.filter(
           </div>
         )}
       </main>
+
+
+      <AppModal
+        open={!!shareModalSermon}
+        icon="🔗"
+        title="Share Sermon"
+        message={`Share "${shareModalSermon?.title || "this sermon"}" with another Preacher's Companion user.`}
+        onClose={() => setShareModalSermon(null)}
+      >
+        <input
+          type="email"
+          placeholder="Recipient login email"
+          value={shareEmail}
+          onChange={(e) => setShareEmail(e.target.value)}
+          style={modalInputStyle}
+        />
+
+        {shareStatus && <p style={modalStatusStyle}>{shareStatus}</p>}
+
+        <button style={shareModalButtonStyle} onClick={handleDashboardShare}>
+          Send Sermon
+        </button>
+
+        <button
+          style={cancelModalButtonStyle}
+          onClick={() => setShareModalSermon(null)}
+        >
+          Cancel
+        </button>
+      </AppModal>
+
+      <AppModal
+        open={!!messageModal}
+        icon={messageModal?.icon}
+        title={messageModal?.title}
+        message={messageModal?.message}
+        onClose={() => setMessageModal(null)}
+      >
+        <button style={shareModalButtonStyle} onClick={() => setMessageModal(null)}>
+          OK
+        </button>
+      </AppModal>
 
       <AppModal
         open={!!trashModalSermon}
@@ -497,6 +779,7 @@ function SermonCard({
   toggleFavorite,
   moveToTrash,
   restoreSermon,
+  openShareModal,
 }) {
   const tags = Array.isArray(sermon.tags) ? sermon.tags : [];
 
@@ -546,6 +829,16 @@ function SermonCard({
             }}
           >
             Preach
+          </button>
+
+          <button
+            style={shareSmallButton}
+            onClick={(e) => {
+              e.stopPropagation();
+              openShareModal(sermon);
+            }}
+          >
+            <Share2 size={16} />
           </button>
 
           <button
@@ -900,6 +1193,52 @@ const sidebarStorageTextStyle = {
   lineHeight: "1.35",
 };
 
+
+
+
+const shareSmallButton = {
+  background: "#1e293b",
+  color: "#86efac",
+  border: "1px solid #334155",
+  padding: "8px 12px",
+  borderRadius: "8px",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+};
+
+const modalInputStyle = {
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "12px",
+  borderRadius: "10px",
+  border: "1px solid #334155",
+  background: "#1e293b",
+  color: "white",
+  fontSize: "15px",
+};
+
+const modalStatusStyle = {
+  color: "#86efac",
+  fontWeight: "bold",
+  margin: "0",
+};
+
+const shareModalButtonStyle = {
+  background: "#d9f99d",
+  color: "#0f172a",
+  border: "none",
+  padding: "12px 18px",
+  borderRadius: "10px",
+  fontWeight: "bold",
+  cursor: "pointer",
+};
+
+const sharedDateStyle = {
+  color: "#94a3b8",
+  fontSize: "13px",
+  marginTop: "10px",
+};
 
 
 const deleteConfirmButtonStyle = {
