@@ -260,39 +260,56 @@ function Editor() {
     setSaveStatus("Auto-saved. Please click Save Sermon before leaving.");
   }
 
-  async function lookupBibleVerse() {
-    if (!bibleReference.trim()) {
-      alert("Enter a Bible reference, e.g. John 3:16");
+async function lookupBibleVerse() {
+  const cleanReference = bibleReference.trim().replace(/\s+/g, " ");
+
+  if (!cleanReference) {
+    alert(
+      "Enter a Bible reference.\n\nExamples:\nJohn 3:16\nJohn 3:3-10\nGenesis 1:1-5\nRomans 8:28-30"
+    );
+    return;
+  }
+
+  setBibleLoading(true);
+  setBibleResult("");
+
+  try {
+    const response = await fetch(
+      `https://bible-api.com/${encodeURIComponent(
+        cleanReference
+      )}?translation=${bibleTranslation}`
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || data.error) {
+      alert(data.error || "Verse or verse range not found.");
+      setBibleLoading(false);
       return;
     }
 
-    setBibleLoading(true);
-    setBibleResult("");
+    let verseText = "";
 
-    try {
-      const response = await fetch(
-        `https://bible-api.com/${encodeURIComponent(
-          bibleReference
-        )}?translation=${bibleTranslation}`
-      );
-
-      const data = await response.json();
-
-      if (!response.ok || data.error) {
-        alert(data.error || "Verse not found.");
-        setBibleLoading(false);
-        return;
-      }
-
-      setBibleResult(
-        `${data.reference} (${bibleTranslation.toUpperCase()})\n${data.text.trim()}`
-      );
-    } catch {
-      alert("Could not fetch Bible verse. Check your internet connection.");
+    if (data.verses && data.verses.length > 0) {
+      verseText = data.verses
+        .map(
+          (v) =>
+            `${v.book_name} ${v.chapter}:${v.verse} ${v.text.trim()}`
+        )
+        .join("\n");
+    } else {
+      verseText = data.text.trim();
     }
 
-    setBibleLoading(false);
+    setBibleResult(
+      `${data.reference} (${bibleTranslation.toUpperCase()})\n\n${verseText}`
+    );
+  } catch {
+    alert("Could not fetch Bible passage. Check your internet connection.");
   }
+
+  setBibleLoading(false);
+}
 
   async function runAiAssistant() {
     if (!editor) return;
@@ -1036,7 +1053,7 @@ Admin contact: njokire@gmail.com`,
         <div style={bibleSearchRow}>
           <input
             type="text"
-            placeholder="Enter verse e.g. John 3:16"
+            placeholder="John 3:16 | John 3:3-10 | Genesis 1:1-5"
             value={bibleReference}
             onChange={(e) => setBibleReference(e.target.value)}
             style={bibleInput}
