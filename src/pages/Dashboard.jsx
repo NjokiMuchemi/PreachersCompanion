@@ -11,7 +11,6 @@ import {
   LayoutGrid,
   List,
   Edit3,
-  Share2,
 } from "lucide-react";
 
 import { Link, useNavigate } from "react-router-dom";
@@ -23,7 +22,10 @@ function Dashboard() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [viewMode, setViewMode] = useState("grid");
-const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [storageInfo, setStorageInfo] = useState(null);
+  const [trashModalSermon, setTrashModalSermon] = useState(null);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -59,13 +61,17 @@ const [isAdmin, setIsAdmin] = useState(false);
       navigate("/");
       return;
     }
-const { data: adminData } = await supabase
-  .from("admin_users")
-  .select("id")
-  .eq("id", user.id)
-  .single();
 
-setIsAdmin(!!adminData);
+    loadStorageUsage(user.id);
+
+    const { data: adminData } = await supabase
+      .from("admin_users")
+      .select("id")
+      .eq("id", user.id)
+      .single();
+
+    setIsAdmin(!!adminData);
+
     const { data, error } = await supabase
       .from("sermons")
       .select("*")
@@ -74,112 +80,10 @@ setIsAdmin(!!adminData);
 
     if (error) {
       alert(error.message);
-      return;
+      return;8
     }
 
     setSermons(data || []);
-  }
-
-
-  function openShareModal(sermon) {
-    setShareModalSermon(sermon);
-    setShareEmail("");
-    setShareStatus("");
-  }
-
-  async function handleDashboardShare() {
-    if (!shareModalSermon) return;
-
-    if (!shareEmail.trim()) {
-      setMessageModal({
-        icon: "⚠️",
-        title: "Recipient Email Required",
-        message: "Please enter the recipient's login email.",
-      });
-      return;
-    }
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-
-    if (!user || !session) {
-      setMessageModal({
-        icon: "⚠️",
-        title: "Login Required",
-        message: "You must be logged in to share sermons.",
-      });
-      return;
-    }
-
-    if (shareEmail.trim().toLowerCase() === user.email?.toLowerCase()) {
-      setMessageModal({
-        icon: "⚠️",
-        title: "Invalid Recipient",
-        message: "You cannot share a sermon with yourself.",
-      });
-      return;
-    }
-
-    setShareStatus("Checking recipient...");
-
-    const lookupResponse = await fetch("/api/find-user-by-email", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        email: shareEmail.trim(),
-      }),
-    });
-
-    const lookupData = await lookupResponse.json();
-
-    if (!lookupResponse.ok) {
-      setShareStatus("");
-      setMessageModal({
-        icon: "⚠️",
-        title: "Recipient Not Found",
-        message: lookupData.error || "Recipient not found.",
-      });
-      return;
-    }
-
-    setShareStatus("Sharing sermon...");
-
-    const { error } = await supabase.from("sermon_shares").insert([
-      {
-        sender_id: user.id,
-        recipient_id: lookupData.user.id,
-        sermon_id: shareModalSermon.id,
-        status: "pending",
-      },
-    ]);
-
-    if (error) {
-      setShareStatus("");
-      setMessageModal({
-        icon: "⚠️",
-        title: "Share Failed",
-        message: error.message,
-      });
-      return;
-    }
-
-    setShareModalSermon(null);
-    setShareEmail("");
-    setShareStatus("");
-
-    setMessageModal({
-      icon: "✅",
-      title: "Sermon Shared",
-      message: "Sermon shared successfully.",
-    });
   }
 
   async function renameCategory(oldCategory) {
@@ -191,6 +95,8 @@ setIsAdmin(!!adminData);
     if (!newCategory || !newCategory.trim()) return;
 
     const cleanCategory = newCategory.trim();
+
+    if (cleanCategory === oldCategory) return;
 
     const confirmRename = window.confirm(
       `Rename all sermons in "${oldCategory}" to "${cleanCategory}"?`
@@ -204,6 +110,17 @@ setIsAdmin(!!adminData);
 
     if (!user) return;
 
+    const affectedSermons = sermons.filter(
+      (sermon) => (sermon.category || "Uncategorized") === oldCategory
+    );
+
+    const affectedIds = affectedSermons.map((sermon) => sermon.id);
+
+    if (affectedIds.length === 0) {
+      alert("No sermons found in this category.");
+      return;
+    }
+
     const { error } = await supabase
       .from("sermons")
       .update({
@@ -211,14 +128,24 @@ setIsAdmin(!!adminData);
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", user.id)
-      .eq("category", oldCategory);
+      .in("id", affectedIds);
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    fetchSermons();
+    setSermons((current) =>
+      current.map((sermon) =>
+        affectedIds.includes(sermon.id)
+          ? { ...sermon, category: cleanCategory }
+          : sermon
+      )
+    );
+
+    await fetchSermons();
+
+    alert(`Category renamed to "${cleanCategory}" successfully.`);
   }
 
   async function logout() {
@@ -227,33 +154,51 @@ setIsAdmin(!!adminData);
   }
 
   async function toggleFavorite(sermon) {
-    await supabase
+    const { error } = await supabase
       .from("sermons")
       .update({ is_favorite: !sermon.is_favorite })
       .eq("id", sermon.id);
 
-    fetchSermons();
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    await fetchSermons();
   }
 
-  async function moveToTrash(sermon) {
-    const confirmTrash = window.confirm("Move this sermon to Trash?");
-    if (!confirmTrash) return;
+  function moveToTrash(sermon) {
+    setTrashModalSermon(sermon);
+  }
 
-    await supabase
+  async function confirmMoveToTrash() {
+    if (!trashModalSermon) return;
+    const { error } = await supabase
       .from("sermons")
       .update({ is_deleted: true })
-      .eq("id", sermon.id);
+      .eq("id", trashModalSermon.id);
 
-    fetchSermons();
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    await fetchSermons();
+    setTrashModalSermon(null);
   }
 
   async function restoreSermon(sermon) {
-    await supabase
+    const { error } = await supabase
       .from("sermons")
       .update({ is_deleted: false })
       .eq("id", sermon.id);
 
-    fetchSermons();
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    await fetchSermons();
   }
 
   let displayedSermons = sermons;
@@ -270,34 +215,20 @@ setIsAdmin(!!adminData);
     displayedSermons = sermons.filter((s) => s.is_deleted);
   }
 
-  if (activeTab === "shared") {
-    displayedSermons = [];
-  }
-
   if (activeTab === "categories") {
     displayedSermons = sermons.filter((s) => !s.is_deleted);
   }
 
   const filteredSermons = displayedSermons.filter((sermon) => {
     const search = searchTerm.toLowerCase();
+    const tagsText = Array.isArray(sermon.tags) ? sermon.tags.join(" ") : "";
 
-    const totalSermonsCount = sermons.filter((s) => !s.is_deleted).length;
-
-  const categoriesCount = new Set(
-    sermons
-      .filter((s) => !s.is_deleted)
-      .map((s) => s.category)
-      .filter(Boolean)
-  ).size;
-
-  const favoritesCount = sermons.filter(
-    (s) => !s.is_deleted && (s.is_favorite || s.favorite)
-  ).length;
-
-  return (
+    return (
       sermon.title?.toLowerCase().includes(search) ||
       sermon.category?.toLowerCase().includes(search) ||
-      sermon.scripture?.toLowerCase().includes(search)
+      sermon.scripture?.toLowerCase().includes(search) ||
+      sermon.content?.toLowerCase().includes(search) ||
+      tagsText.toLowerCase().includes(search)
     );
   });
 
@@ -311,31 +242,59 @@ setIsAdmin(!!adminData);
     groups[category].push(sermon);
     return groups;
   }, {});
+const totalSermonsCount = sermons.filter(
+  (s) => !s.deleted_at
+).length;
 
+const categoriesCount = new Set(
+  sermons
+    .filter((s) => !s.deleted_at)
+    .map((s) => s.category)
+    .filter(Boolean)
+).size;
+
+const favoritesCount = sermons.filter(
+  (s) => !s.deleted_at && (s.is_favorite || s.favorite)
+).length;
   return (
     <div style={pageStyle}>
       <aside style={sidebarStyle}>
-        <h2>Preacher&apos;s Companion</h2>
-        <p style={mutedText}>Sermon Workspace</p>
+        <div style={brandBox}>
+          <h2 style={brandTitle}>PREACHER&apos;S COMPANION</h2>
+          <p style={brandScripture}>Scripture. Organize. Prepare. Preach.</p>
+          <p style={poweredBy}>
+            Powered by Nebkona Investors Ltd
+            <br />
+            Technologies Division
+          </p>
+        </div>
 
-        <nav style={{ marginTop: "40px" }}>
-          <p style={getNavStyle(activeTab === "all")} onClick={() => setActiveTab("all")}>
+        <nav style={{ marginTop: "35px" }}>
+          <p
+            style={getNavStyle(activeTab === "all")}
+            onClick={() => setActiveTab("all")}
+          >
             All Sermons
           </p>
 
-          <p style={getNavStyle(activeTab === "categories")} onClick={() => setActiveTab("categories")}>
+          <p
+            style={getNavStyle(activeTab === "categories")}
+            onClick={() => setActiveTab("categories")}
+          >
             Categories
           </p>
 
-          <p style={getNavStyle(activeTab === "favorites")} onClick={() => setActiveTab("favorites")}>
+          <p
+            style={getNavStyle(activeTab === "favorites")}
+            onClick={() => setActiveTab("favorites")}
+          >
             Favorites
           </p>
 
-          <p style={getNavStyle(activeTab === "shared")} onClick={() => setActiveTab("shared")}>
-            Shared With Me {sharedSermons.length > 0 ? `(${sharedSermons.length})` : ""}
-          </p>
-
-          <p style={getNavStyle(activeTab === "trash")} onClick={() => setActiveTab("trash")}>
+          <p
+            style={getNavStyle(activeTab === "trash")}
+            onClick={() => setActiveTab("trash")}
+          >
             Trash
           </p>
 
@@ -343,11 +302,13 @@ setIsAdmin(!!adminData);
             <Settings size={16} />
             Settings
           </p>
-{isAdmin && (
-  <p style={getNavStyle(false)} onClick={() => navigate("/admin")}>
-    Admin
-  </p>
-)}
+
+          {isAdmin && (
+            <p style={getNavStyle(false)} onClick={() => navigate("/admin")}>
+              Admin
+            </p>
+          )}
+
           <p style={logoutNavStyle} onClick={logout}>
             <LogOut size={16} />
             Logout
@@ -375,7 +336,10 @@ setIsAdmin(!!adminData);
                 />
               </div>
 
-              <p style={sidebarStorageTextStyle}>{storageInfo.remaining_mb} MB left</p>
+              <p style={sidebarStorageTextStyle}>
+                {storageInfo.remaining_mb} MB left
+              </p>
+
               <p style={sidebarStorageTextStyle}>
                 Approx. {storageInfo.approximate_sermons_remaining} sermons left
               </p>
@@ -392,7 +356,6 @@ setIsAdmin(!!adminData);
               {activeTab === "all" && "My Sermons"}
               {activeTab === "categories" && "Categories"}
               {activeTab === "favorites" && "Favorite Sermons"}
-              {activeTab === "shared" && "Shared With Me"}
               {activeTab === "trash" && "Trash"}
             </h1>
             <p style={subtitleStyle}>Organize and access your ministry notes.</p>
@@ -421,38 +384,31 @@ setIsAdmin(!!adminData);
             </Link>
           </div>
         </div>
+<div style={statsRowStyle}>
+  <div style={statsCardStyle}>
+    <div style={statsNumberStyle}>{totalSermonsCount}</div>
+    <div style={statsLabelStyle}>Total Sermons</div>
+  </div>
 
+  <div style={statsCardStyle}>
+    <div style={statsNumberStyle}>{categoriesCount}</div>
+    <div style={statsLabelStyle}>Categories</div>
+  </div>
 
-        <div style={statsRowStyle}>
-          <div style={statsCardStyle}>
-            <div style={statsNumberStyle}>{totalSermonsCount}</div>
-            <div style={statsLabelStyle}>Total Sermons</div>
-          </div>
-
-          <div style={statsCardStyle}>
-            <div style={statsNumberStyle}>{categoriesCount}</div>
-            <div style={statsLabelStyle}>Categories</div>
-          </div>
-
-          <div style={statsCardStyle}>
-            <div style={statsNumberStyle}>{favoritesCount}</div>
-            <div style={statsLabelStyle}>Favorites</div>
-          </div>
-        </div>
-
+  <div style={statsCardStyle}>
+    <div style={statsNumberStyle}>{favoritesCount}</div>
+    <div style={statsLabelStyle}>Favorites</div>
+  </div>
+</div>
         <div style={searchBoxStyle}>
           <Search size={20} />
           <input
-            placeholder="Search sermons, scriptures or categories..."
+            placeholder="Search sermons, scriptures, categories, tags or content..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={searchInputStyle}
           />
         </div>
-
-        {activeTab === "shared" && sharedSermons.length === 0 && (
-          <p style={emptyText}>No sermons have been shared with you yet.</p>
-        )}
 
         {activeTab === "categories" ? (
           Object.keys(groupedByCategory).length > 0 ? (
@@ -481,7 +437,6 @@ setIsAdmin(!!adminData);
                       toggleFavorite={toggleFavorite}
                       moveToTrash={moveToTrash}
                       restoreSermon={restoreSermon}
-                  openShareModal={openShareModal}
                     />
                   ))}
                 </div>
@@ -490,7 +445,7 @@ setIsAdmin(!!adminData);
           ) : (
             <p style={emptyText}>No sermons found.</p>
           )
-        ) : activeTab === "shared" ? null : (
+        ) : (
           <div style={viewMode === "grid" ? gridStyle : listStyle}>
             {filteredSermons.length > 0 ? (
               filteredSermons.map((sermon) => (
@@ -503,7 +458,6 @@ setIsAdmin(!!adminData);
                   toggleFavorite={toggleFavorite}
                   moveToTrash={moveToTrash}
                   restoreSermon={restoreSermon}
-                  openShareModal={openShareModal}
                 />
               ))
             ) : (
@@ -514,43 +468,21 @@ setIsAdmin(!!adminData);
       </main>
 
       <AppModal
-        open={!!shareModalSermon}
-        icon="🔗"
-        title="Share Sermon"
-        message={`Share "${shareModalSermon?.title || "this sermon"}" with another Preacher's Companion user.`}
-        onClose={() => setShareModalSermon(null)}
+        open={!!trashModalSermon}
+        icon="🗑️"
+        title="Move Sermon to Trash?"
+        message={`Move "${trashModalSermon?.title || "this sermon"}" to Trash? You can restore it later from the Trash section.`}
+        onClose={() => setTrashModalSermon(null)}
       >
-        <input
-          type="email"
-          placeholder="Recipient login email"
-          value={shareEmail}
-          onChange={(e) => setShareEmail(e.target.value)}
-          style={modalInputStyle}
-        />
-
-        {shareStatus && <p style={modalStatusStyle}>{shareStatus}</p>}
-
-        <button style={shareModalButtonStyle} onClick={handleDashboardShare}>
-          Send Sermon
+        <button style={deleteConfirmButtonStyle} onClick={confirmMoveToTrash}>
+          Move to Trash
         </button>
 
         <button
           style={cancelModalButtonStyle}
-          onClick={() => setShareModalSermon(null)}
+          onClick={() => setTrashModalSermon(null)}
         >
           Cancel
-        </button>
-      </AppModal>
-
-      <AppModal
-        open={!!messageModal}
-        icon={messageModal?.icon}
-        title={messageModal?.title}
-        message={messageModal?.message}
-        onClose={() => setMessageModal(null)}
-      >
-        <button style={shareModalButtonStyle} onClick={() => setMessageModal(null)}>
-          OK
         </button>
       </AppModal>
     </div>
@@ -565,8 +497,9 @@ function SermonCard({
   toggleFavorite,
   moveToTrash,
   restoreSermon,
-  openShareModal,
 }) {
+  const tags = Array.isArray(sermon.tags) ? sermon.tags : [];
+
   return (
     <div
       style={viewMode === "grid" ? cardStyle : listCardStyle}
@@ -581,6 +514,16 @@ function SermonCard({
         <h3>{sermon.title}</h3>
         <p style={mutedText}>{sermon.category || "Uncategorized"}</p>
         <p style={{ color: "#cbd5e1" }}>{sermon.scripture}</p>
+
+        {tags.length > 0 && (
+          <div style={tagRow}>
+            {tags.map((tag) => (
+              <span key={tag} style={tagChip}>
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {activeTab !== "trash" ? (
@@ -603,16 +546,6 @@ function SermonCard({
             }}
           >
             Preach
-          </button>
-
-          <button
-            style={shareSmallButton}
-            onClick={(e) => {
-              e.stopPropagation();
-              openShareModal(sermon);
-            }}
-          >
-            <Share2 size={16} />
           </button>
 
           <button
@@ -660,10 +593,37 @@ const pageStyle = {
 };
 
 const sidebarStyle = {
-  width: "260px",
+  width: "280px",
   background: "#0f172a",
   padding: "30px",
   borderRight: "1px solid #1e293b",
+};
+
+const brandBox = {
+  borderBottom: "1px solid #1e293b",
+  paddingBottom: "22px",
+};
+
+const brandTitle = {
+  margin: 0,
+  color: "white",
+  fontSize: "22px",
+  lineHeight: "1.1",
+  letterSpacing: "0.5px",
+};
+
+const brandScripture = {
+  color: "#f59e0b",
+  fontWeight: "bold",
+  margin: "10px 0 8px",
+  lineHeight: "1.4",
+};
+
+const poweredBy = {
+  color: "#94a3b8",
+  fontSize: "12px",
+  lineHeight: "1.5",
+  margin: 0,
 };
 
 const mainStyle = { flex: 1, padding: "40px" };
@@ -815,6 +775,23 @@ const listCardStyle = {
   gap: "20px",
 };
 
+const tagRow = {
+  display: "flex",
+  gap: "6px",
+  flexWrap: "wrap",
+  marginTop: "10px",
+};
+
+const tagChip = {
+  background: "#1e293b",
+  color: "#f59e0b",
+  border: "1px solid #334155",
+  borderRadius: "999px",
+  padding: "4px 8px",
+  fontSize: "12px",
+  fontWeight: "bold",
+};
+
 const buttonRow = {
   display: "flex",
   gap: "10px",
@@ -881,33 +858,6 @@ const emptyText = {
 };
 
 
-const statsRowStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(3, 1fr)",
-  gap: "16px",
-  marginBottom: "20px",
-};
-
-const statsCardStyle = {
-  background: "#0f172a",
-  border: "1px solid #1e293b",
-  borderRadius: "14px",
-  padding: "18px",
-  textAlign: "center",
-};
-
-const statsNumberStyle = {
-  color: "#f59e0b",
-  fontSize: "32px",
-  fontWeight: "bold",
-};
-
-const statsLabelStyle = {
-  color: "#94a3b8",
-  fontSize: "14px",
-  marginTop: "6px",
-};
-
 const sidebarStorageCardStyle = {
   marginTop: "22px",
   background: "#020617",
@@ -915,6 +865,7 @@ const sidebarStorageCardStyle = {
   borderRadius: "14px",
   padding: "12px",
   color: "#e5e7eb",
+  boxShadow: "0 12px 35px rgba(0,0,0,0.25)",
 };
 
 const sidebarStorageHeaderStyle = {
@@ -949,37 +900,11 @@ const sidebarStorageTextStyle = {
   lineHeight: "1.35",
 };
 
-const shareSmallButton = {
-  background: "#1e293b",
-  color: "#86efac",
-  border: "1px solid #334155",
-  padding: "8px 12px",
-  borderRadius: "8px",
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-};
 
-const modalInputStyle = {
-  width: "100%",
-  boxSizing: "border-box",
-  padding: "12px",
-  borderRadius: "10px",
-  border: "1px solid #334155",
-  background: "#1e293b",
+
+const deleteConfirmButtonStyle = {
+  background: "#dc2626",
   color: "white",
-  fontSize: "15px",
-};
-
-const modalStatusStyle = {
-  color: "#86efac",
-  fontWeight: "bold",
-  margin: "0",
-};
-
-const shareModalButtonStyle = {
-  background: "#d9f99d",
-  color: "#0f172a",
   border: "none",
   padding: "12px 18px",
   borderRadius: "10px",
@@ -997,5 +922,31 @@ const cancelModalButtonStyle = {
   cursor: "pointer",
 };
 
+const statsRowStyle = {
+  display: "grid",
+  gridTemplateColumns: "repeat(3, 1fr)",
+  gap: "16px",
+  marginBottom: "20px",
+};
+
+const statsCardStyle = {
+  background: "#0f172a",
+  border: "1px solid #1e293b",
+  borderRadius: "14px",
+  padding: "18px",
+  textAlign: "center",
+};
+
+const statsNumberStyle = {
+  color: "#f59e0b",
+  fontSize: "32px",
+  fontWeight: "bold",
+};
+
+const statsLabelStyle = {
+  color: "#94a3b8",
+  fontSize: "14px",
+  marginTop: "6px",
+};
 
 export default Dashboard;
