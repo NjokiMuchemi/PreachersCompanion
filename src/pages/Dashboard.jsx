@@ -63,13 +63,18 @@ function Dashboard() {
     const { data, error } = await supabase
       .from("sermon_shares")
       .select(`
-        id,
-        created_at,
-        status,
-        sermon_id,
-        sender_id,
-        sermons(*)
-      `)
+  id,
+  created_at,
+  status,
+  sermon_id,
+  sender_id,
+  sermon_title,
+  sermon_category,
+  sermon_scripture,
+  sermon_tags,
+  sermon_content,
+  sender_email
+`)
       .eq("recipient_id", userId)
       .eq("status", "pending")
       .order("created_at", { ascending: false });
@@ -80,7 +85,32 @@ function Dashboard() {
       return;
     }
 
-    setSharedSermons(data || []);
+    if (!data || data.length === 0) {
+  setSharedSermons([]);
+  return;
+}
+
+const sermonIds = data.map((share) => share.sermon_id).filter(Boolean);
+
+const { data: sharedSermonData, error: sermonError } = await supabase
+  .from("sermons")
+  .select("*")
+  .in("id", sermonIds);
+
+if (sermonError) {
+  console.error("Could not load shared sermon details", sermonError.message);
+  setSharedSermons(data || []);
+  return;
+}
+
+const mergedShares = data.map((share) => ({
+  ...share,
+  sermons: sharedSermonData?.find(
+    (sermon) => sermon.id === share.sermon_id
+  ),
+}));
+
+setSharedSermons(mergedShares);
   }
 
   async function fetchSermons() {
@@ -240,18 +270,21 @@ function Dashboard() {
     setShareStatus("");
   }
 
-  async function handleDashboardShare() {
-    if (!shareModalSermon) return;
+async function handleDashboardShare() {
+  if (!shareModalSermon) return;
 
-    if (!shareEmail.trim()) {
-      setMessageModal({
-        icon: "⚠️",
-        title: "Recipient Email Required",
-        message: "Please enter the recipient's login email.",
-      });
-      return;
-    }
+  const recipientEmail = shareEmail.trim();
 
+  if (!recipientEmail) {
+    setMessageModal({
+      icon: "⚠️",
+      title: "Recipient Email Required",
+      message: "Please enter the recipient's login email.",
+    });
+    return;
+  }
+
+  try {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -269,7 +302,7 @@ function Dashboard() {
       return;
     }
 
-    if (shareEmail.trim().toLowerCase() === user.email?.toLowerCase()) {
+    if (recipientEmail.toLowerCase() === user.email?.toLowerCase()) {
       setMessageModal({
         icon: "⚠️",
         title: "Invalid Recipient",
@@ -286,44 +319,52 @@ function Dashboard() {
         "Content-Type": "application/json",
         Authorization: `Bearer ${session.access_token}`,
       },
- body: JSON.stringify({
-  email: shareEmail.trim(),
-  recipientEmail: shareEmail.trim(),
-  recipient_email: shareEmail.trim(),
-}),
+      body: JSON.stringify({
+        email: recipientEmail,
+        recipientEmail,
+        recipient_email: recipientEmail,
+      }),
     });
 
-    const lookupData = await lookupResponse.json();
+    const lookupText = await lookupResponse.text();
+    let lookupData = {};
+
+    try {
+      lookupData = lookupText ? JSON.parse(lookupText) : {};
+    } catch {
+      throw new Error(lookupText || "Invalid server response.");
+    }
 
     if (!lookupResponse.ok) {
-      setShareStatus("");
-      setMessageModal({
-        icon: "⚠️",
-        title: "Recipient Not Found",
-        message: lookupData.error || "Recipient not found.",
-      });
-      return;
+      throw new Error(lookupData.error || "Recipient not found.");
     }
 
     setShareStatus("Sharing sermon...");
 
+    const recipientId =
+      lookupData.user?.id || lookupData.id || lookupData.user_id;
+
+    if (!recipientId) {
+      throw new Error("Recipient user ID was not returned by the server.");
+    }
+
     const { error } = await supabase.from("sermon_shares").insert([
-      {
-        sender_id: user.id,
-        recipient_id: lookupData.user.id,
-        sermon_id: shareModalSermon.id,
-        status: "pending",
-      },
-    ]);
+  {
+    sender_id: user.id,
+    recipient_id: recipientId,
+    sermon_id: shareModalSermon.id,
+    status: "pending",
+    sermon_title: shareModalSermon.title,
+    sermon_category: shareModalSermon.category,
+    sermon_scripture: shareModalSermon.scripture,
+    sermon_tags: shareModalSermon.tags || [],
+    sermon_content: shareModalSermon.content || "",
+    sender_email: user.email,
+  },
+]);
 
     if (error) {
-      setShareStatus("");
-      setMessageModal({
-        icon: "⚠️",
-        title: "Share Failed",
-        message: error.message,
-      });
-      return;
+      throw new Error(error.message);
     }
 
     setShareModalSermon(null);
@@ -335,8 +376,15 @@ function Dashboard() {
       title: "Sermon Shared",
       message: "Sermon shared successfully.",
     });
+  } catch (error) {
+    setShareStatus("");
+    setMessageModal({
+      icon: "⚠️",
+      title: "Share Failed",
+      message: error.message || "The sermon could not be shared.",
+    });
   }
-
+}
   async function dismissSharedSermon(shareId) {
     const { error } = await supabase
       .from("sermon_shares")
@@ -355,47 +403,49 @@ function Dashboard() {
     setSharedSermons((current) => current.filter((share) => share.id !== shareId));
   }
 
-  async function saveSharedSermon(share) {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+ async function saveSharedSermon(share) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-    if (!user || !share?.sermons) return;
-
-    const sermon = share.sermons;
-
-    const { error } = await supabase.from("sermons").insert([
-      {
-        user_id: user.id,
-        title: sermon.title,
-        category: sermon.category,
-        scripture: sermon.scripture,
-        tags: sermon.tags,
-        content: sermon.content,
-        is_favorite: false,
-        is_deleted: false,
-      },
-    ]);
-
-    if (error) {
-      setMessageModal({
-        icon: "⚠️",
-        title: "Could Not Save",
-        message: error.message,
-      });
-      return;
-    }
-
-    await dismissSharedSermon(share.id);
-    await fetchSermons();
-
-    setMessageModal({
-      icon: "✅",
-      title: "Saved To Your Library",
-      message: "The shared sermon has been copied into your sermon library.",
-    });
+  if (!user) {
+    navigate("/");
+    return;
   }
 
+  const { error } = await supabase.from("sermons").insert([
+    {
+      user_id: user.id,
+      title: share.sermon_title || "Shared Sermon",
+      category: share.sermon_category || "Shared Sermons",
+      scripture: share.sermon_scripture || "",
+      tags: Array.isArray(share.sermon_tags) ? share.sermon_tags : [],
+      content: share.sermon_content || "",
+      is_favorite: false,
+      is_deleted: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  ]);
+
+  if (error) {
+    setMessageModal({
+      icon: "⚠️",
+      title: "Could Not Save",
+      message: error.message,
+    });
+    return;
+  }
+
+  await dismissSharedSermon(share.id);
+  await fetchSermons();
+
+  setMessageModal({
+    icon: "✅",
+    title: "Saved To My Sermons",
+    message: "The shared sermon has been copied into your sermons.",
+  });
+}
 
   let displayedSermons = sermons;
 
@@ -626,9 +676,10 @@ const favoritesCount = sermons.filter(
                 <div key={share.id} style={viewMode === "grid" ? cardStyle : listCardStyle}>
                   <div style={{ flex: 1 }}>
                     <BookOpen color="#f59e0b" size={28} />
-                    <h3>{share.sermons?.title || "Untitled Sermon"}</h3>
-                    <p style={mutedText}>{share.sermons?.category || "Shared Sermon"}</p>
-                    <p style={{ color: "#cbd5e1" }}>{share.sermons?.scripture || ""}</p>
+                    <h3>{share.sermon_title || "Untitled Sermon"}</h3>
+                    <p style={mutedText}>{share.sermon_category || "Shared Sermon"}</p>
+                    <p style={{ color: "#cbd5e1" }}>{share.sermon_scripture || ""}</p>
+                    <p style={mutedText}>Shared by: {share.sender_email || "Unknown sender"}</p>
                     <p style={sharedDateStyle}>
                       Shared on {new Date(share.created_at).toLocaleDateString()}
                     </p>
