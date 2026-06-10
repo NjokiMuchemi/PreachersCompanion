@@ -1086,6 +1086,13 @@ Admin contact: njokire@gmail.com`,
 
       <div style={editorCard}>
         <div style={toolbarStyle}>
+        
+          <button style={toolButton} onClick={() => editor.chain().focus().undo().run()}>
+  ↶       </button>
+
+         <button style={toolButton} onClick={() => editor.chain().focus().redo().run()}>
+  ↷      </button>
+  
           <button style={toolButton} onClick={() => editor.chain().focus().toggleBold().run()}>
             <Bold size={18} />
           </button>
