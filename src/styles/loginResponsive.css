@@ -1,0 +1,56 @@
+/* Login-only layout refinements. Other application pages are untouched. */
+.pc-login-page { width:100%; max-width:100%; }
+.pc-login-shell > * { min-width:0; }
+.pc-login-form-panel { scrollbar-width:thin; scrollbar-color:#334155 transparent; }
+.pc-login-form-content { min-width:0; }
+.pc-login-brand-title { overflow-wrap:anywhere; }
+.pc-login-fields input { min-height:48px; transition:border-color .18s ease,box-shadow .18s ease; }
+.pc-login-fields input:focus { border-color:#fbbf24 !important; box-shadow:0 0 0 3px rgba(251,191,36,.12); outline:none; }
+.pc-login-fields button { min-height:52px; transition:filter .18s ease,transform .18s ease; }
+.pc-login-fields button:hover { filter:brightness(1.07); }
+.pc-login-fields button:focus-visible,.pc-login-page a:focus-visible { outline:2px solid #fcd34d; outline-offset:3px; }
+.pc-login-hero { isolation:isolate; }
+/* Full-bleed photo: eliminates the hard vertical boundary at 36%. */
+.pc-hero-photo { position:absolute; inset:0; background-repeat:no-repeat; background-position:65% center; background-size:cover; opacity:1; pointer-events:none; z-index:0; }
+/* Text legibility without hiding the Bible and pulpit. */
+.pc-login-hero::after { content:""; position:absolute; inset:0; pointer-events:none; z-index:1; background:linear-gradient(90deg,rgba(2,6,23,.94) 0%,rgba(2,6,23,.76) 24%,rgba(2,6,23,.28) 54%,rgba(2,6,23,.06) 100%),linear-gradient(0deg,rgba(2,6,23,.55),transparent 33%); }
+.pc-login-hero-copy { z-index:3; pointer-events:none; text-shadow:0 2px 14px rgba(0,0,0,.25); }
+.pc-login-features { z-index:3; box-sizing:border-box; }
+.pc-login-features > div { min-width:0; }
+.pc-login-features span { display:block; }
+@media (max-height:750px) and (min-width:901px) {
+  .pc-login-form-panel { justify-content:flex-start !important; }
+  .pc-login-hero-copy { top:5vh !important; }
+  .pc-login-features { bottom:12px !important; padding:9px 6px !important; }
+}
+@media (max-width:1100px) and (min-width:901px) {
+  .pc-login-shell { grid-template-columns:minmax(0,39%) minmax(0,61%) !important; }
+  .pc-login-hero-copy { width:52% !important; left:25px !important; }
+  .pc-login-features { left:16px !important; right:16px !important; }
+  .pc-hero-photo { background-position:60% center; }
+}
+@media (max-width:900px) {
+  .pc-login-page { min-height:100dvh !important; overflow:auto !important; }
+  .pc-login-shell { height:auto !important; min-height:100dvh !important; grid-template-columns:minmax(0,1fr) !important; overflow:visible !important; }
+  .pc-login-form-panel { min-height:0 !important; padding:36px 6vw !important; overflow:visible !important; }
+  .pc-login-form-content { max-width:520px !important; }
+  .pc-login-hero { height:440px !important; min-height:440px !important; }
+  .pc-login-hero-copy { top:35px !important; left:6vw !important; width:55% !important; }
+  .pc-login-features { left:5vw !important; right:5vw !important; bottom:16px !important; }
+}
+@media (max-width:520px) {
+  .pc-login-form-panel { padding:26px 22px !important; }
+  .pc-login-brand { gap:10px !important; }
+  .pc-login-brand-title { font-size:clamp(19px,6vw,26px) !important; }
+  .pc-login-hero { height:420px !important; min-height:420px !important; }
+  .pc-hero-photo { background-position:62% center; }
+  .pc-login-hero-copy { top:24px !important; left:22px !important; width:65% !important; }
+  .pc-login-hero-copy h2 { font-size:clamp(40px,11vw,62px) !important; }
+  .pc-login-hero-copy p { font-size:12px !important; }
+  .pc-login-features { grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:10px 0 !important; padding:12px 6px !important; left:12px !important; right:12px !important; }
+  .pc-login-features > div:nth-child(2) { border-right:none !important; }
+  .pc-login-features > div { padding:0 5px !important; }
+  .pc-login-features > div > div { font-size:18px !important; margin-bottom:2px !important; }
+  .pc-login-features strong { font-size:11px !important; margin-bottom:2px !important; }
+  .pc-login-features span { font-size:10px !important; }
+}

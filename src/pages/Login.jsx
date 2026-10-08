@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import brandHero from "../assets/brand-hero.png";
 import brandLogo from "../assets/brandLogo.png";
-import { colors } from "../theme/companionTheme";
+import pulpitBibleHero from "../assets/pulpit-bible-hero.png";
+import "../styles/loginResponsive.css";
 import {
+pageStyle, loginShell, formPanel, formContent, brandHeader, brandLogoStyle,
+brandTitle, titleFirstWord, titleSecondWord, headlineBlock, mainHeadline, scriptureStyle,
 formBox,
 inputStyle,
 forgotWrapper,
@@ -19,7 +21,6 @@ goldText,
 poweredBox,
 initiativeText,
 heroPanel,
-heroImage,
 heroOverlay,
 heroTextBlock,
 heroKicker,
@@ -54,11 +55,11 @@ function Login() {
   }
   
   return (
-    <div style={pageStyle}>
-      <main style={loginShell}>
-        <section style={formPanel}>
-          <div style={formContent}>
-            <div style={brandHeader}>
+    <div style={pageStyle} className="pc-login-page">
+      <main style={loginShell} className="pc-login-shell">
+        <section style={formPanel} className="pc-login-form-panel">
+          <div style={formContent} className="pc-login-form-content">
+            <div style={brandHeader} className="pc-login-brand">
   <img
     src={brandLogo}
     alt="Preacher's Companion"
@@ -66,14 +67,14 @@ function Login() {
   />
 
   <div>
-  <h1 style={brandTitle}>
+  <h1 style={brandTitle} className="pc-login-brand-title">
     <span style={titleFirstWord}>PREACHER&apos;S</span> 
     <span style={titleSecondWord}>COMPANION</span>
   </h1>
 </div>
 </div>
 
-            <div style={headlineBlock}>
+            <div style={headlineBlock} className="pc-login-headline">
               <h2 style={mainHeadline}>
                 From Revelation To Proclamation
               </h2>
@@ -85,7 +86,7 @@ function Login() {
               </p>
             </div>
 
-            <div style={formBox}>
+            <div style={formBox} className="pc-login-fields">
               <input
                 type="email"
                 placeholder="Email Address"
@@ -126,7 +127,7 @@ function Login() {
               </Link>
             </p>
 
-            <div style={poweredBox}>
+            <div style={poweredBox} className="pc-login-powered">
               <span style={initiativeText}>A SHE Ministers Forum Initiative</span>
               <br />
               Powered by Nebkona Investors Ltd – Technologies Division
@@ -134,24 +135,19 @@ function Login() {
           </div>
         </section>
 
-        <section style={heroPanel}>
-          <img
-            src={brandHero}
-            alt="Preacher's Companion digital pulpit"
-            style={heroImage}
-          />
-          <div style={heroOverlay} />
+        <section style={heroPanel} className="pc-login-hero">
+          <div className="pc-hero-photo" style={{ backgroundImage: `url(${pulpitBibleHero})` }} aria-hidden="true" />
+          <div style={heroOverlay} aria-hidden="true" />
 
-          <div style={heroTextBlock}>
+          <div style={heroTextBlock} className="pc-login-hero-copy">
             <p style={heroKicker}>The Digital</p>
             <h2 style={heroBigTitle}>Pulpit</h2>
             <p style={heroIntro}>
-             Prepare sermons, preserve revelation and <br />
-             Carry your ministry notes wherever you go.
+              Prepare sermons, preserve revelation, and carry your ministry notes wherever you go.
              </p>
           </div>
 
-          <div style={featureBar}>
+          <div style={featureBar} className="pc-login-features">
             <div style={featureItem}>
               <div style={featureIcon}>📖</div>
               <strong style={featureTitle}>Plan</strong>
@@ -159,21 +155,21 @@ function Login() {
             </div>
 
             <div style={featureItem}>
-              <div style={featureIcon}>☁️</div>
+              <div style={featureIcon}>☁</div>
               <strong style={featureTitle}>Preserve</strong>
               <span style={featureText}>Messages safely</span>
             </div>
 
             <div style={featureItem}>
-              <div style={featureIcon}>💻</div>
+              <div style={featureIcon}>▣</div>
               <strong style={featureTitle}>Present</strong>
-              <span style={featureText}>Access, Anywhere, Anytime</span>
+              <span style={featureText}>Anywhere, anytime</span>
             </div>
 
             <div style={featureItemLast}>
-              <div style={featureIcon}> </div>
+              <div style={featureIcon}>✝</div>
               <strong style={featureTitle}>Proclaim</strong>
-              <span style={featureText}>Your Ministry Messages With confidence</span>
+              <span style={featureText}>Your messages with confidence</span>
             </div>
           </div>
         </section>

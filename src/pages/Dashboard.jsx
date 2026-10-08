@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "../styles/appPolish.css";
 import {
   Plus,
   Search,
@@ -17,7 +18,52 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import AppModal from "../components/AppModal";
-
+import {
+  pageStyle,
+  sidebarStyle,
+  mainStyle,
+  brandBox,
+ brandTitle,
+ brandScripture,
+ poweredBy,
+ getNavStyle,
+ logoutNavStyle,
+ topBarStyle,
+headingStyle,
+subtitleStyle,
+topActions,
+viewToggle,
+viewButton,
+activeViewButton,
+newButtonStyle,
+searchBoxStyle,
+searchInputStyle,
+gridStyle,
+listStyle,
+cardStyle,
+listCardStyle,
+categoryHeader,
+renameCategoryButton,
+tagRow,
+tagChip,
+mutedText,
+buttonRow,
+smallButton,
+preachButton,
+favoriteButton,
+trashButton,
+restoreButton,
+emptyText,
+sidebarStorageCardStyle,
+sidebarStorageHeaderStyle,
+sidebarStorageBarOuter,
+sidebarStorageBarInner,
+sidebarStorageTextStyle,
+statsRowStyle,
+statsCardStyle,
+statsNumberStyle,
+statsLabelStyle,
+} from "../styles/dashboardStyles";
 function Dashboard() {
   const [sermons, setSermons] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -469,6 +515,10 @@ async function handleDashboardShare() {
     displayedSermons = sermons.filter((s) => !s.is_deleted);
   }
 
+  if (activeTab === "tags") {
+    displayedSermons = sermons.filter((s) => !s.is_deleted);
+  }
+
   const filteredSermons = displayedSermons.filter((sermon) => {
     const search = searchTerm.toLowerCase();
     const tagsText = Array.isArray(sermon.tags) ? sermon.tags.join(" ") : "";
@@ -492,6 +542,26 @@ async function handleDashboardShare() {
     groups[category].push(sermon);
     return groups;
   }, {});
+
+  const groupedByTag = filteredSermons.reduce((groups, sermon) => {
+    const tags =
+      Array.isArray(sermon.tags) && sermon.tags.length > 0
+        ? sermon.tags
+        : ["Untagged"];
+
+    tags.forEach((tag) => {
+      const cleanTag = String(tag || "Untagged").trim() || "Untagged";
+
+      if (!groups[cleanTag]) {
+        groups[cleanTag] = [];
+      }
+
+      groups[cleanTag].push(sermon);
+    });
+
+    return groups;
+  }, {});
+
 const totalSermonsCount = sermons.filter(
   (s) => !s.is_deleted
 ).length;
@@ -507,15 +577,15 @@ const favoritesCount = sermons.filter(
   (s) => !s.is_deleted && (s.is_favorite || s.favorite)
 ).length;
   return (
-    <div style={pageStyle}>
-      <aside style={sidebarStyle}>
+    <div style={pageStyle} className="pc-dashboard">
+      <aside style={sidebarStyle} className="pc-dashboard-sidebar">
         <div style={brandBox}>
           <h2 style={brandTitle}>PREACHER&apos;S COMPANION</h2>
-          <p style={brandScripture}>Scripture. Organize. Prepare. Preach.</p>
+          <p style={brandScripture}>Plan. Preserve. Present. Proclaim.</p>
           <p style={poweredBy}>
-            Powered by Nebkona Investors Ltd
+            A SHE Ministers Forum Initiative
             <br />
-            Technologies Division
+            Powered by Nebkona Investors Ltd - Technologies Division
           </p>
         </div>
 
@@ -532,6 +602,13 @@ const favoritesCount = sermons.filter(
             onClick={() => setActiveTab("categories")}
           >
             Categories
+          </p>
+
+          <p
+            style={getNavStyle(activeTab === "tags")}
+            onClick={() => setActiveTab("tags")}
+          >
+            Tags
           </p>
 
           <p
@@ -606,12 +683,13 @@ const favoritesCount = sermons.filter(
         </nav>
       </aside>
 
-      <main style={mainStyle}>
-        <div style={topBarStyle}>
+      <main style={mainStyle} className="pc-dashboard-main">
+        <div style={topBarStyle} className="pc-dashboard-topbar">
           <div>
             <h1 style={headingStyle}>
               {activeTab === "all" && "My Sermons"}
               {activeTab === "categories" && "Categories"}
+              {activeTab === "tags" && "Tags"}
               {activeTab === "favorites" && "Favorite Sermons"}
               {activeTab === "shared" && "Shared With Me"}
               {activeTab === "trash" && "Trash"}
@@ -642,7 +720,7 @@ const favoritesCount = sermons.filter(
             </Link>
           </div>
         </div>
-<div style={statsRowStyle}>
+<div style={statsRowStyle} className="pc-dashboard-stats">
   <div style={statsCardStyle}>
     <div style={statsNumberStyle}>{totalSermonsCount}</div>
     <div style={statsLabelStyle}>Total Sermons</div>
@@ -658,7 +736,7 @@ const favoritesCount = sermons.filter(
     <div style={statsLabelStyle}>Favorites</div>
   </div>
 </div>
-        <div style={searchBoxStyle}>
+        <div style={searchBoxStyle} className="pc-dashboard-search">
           <Search size={20} />
           <input
             placeholder="Search sermons, scriptures, categories, tags or content..."
@@ -671,9 +749,9 @@ const favoritesCount = sermons.filter(
 
         {activeTab === "shared" ? (
           sharedSermons.length > 0 ? (
-            <div style={viewMode === "grid" ? gridStyle : listStyle}>
+            <div style={viewMode === "grid" ? gridStyle : listStyle} className={viewMode === "grid" ? "pc-sermon-grid" : "pc-sermon-list"}>
               {sharedSermons.map((share) => (
-                <div key={share.id} style={viewMode === "grid" ? cardStyle : listCardStyle}>
+                <div key={share.id} style={viewMode === "grid" ? cardStyle : listCardStyle} className="pc-sermon-card">
                   <div style={{ flex: 1 }}>
                     <BookOpen color="#f59e0b" size={28} />
                     <h3>{share.sermon_title || "Untitled Sermon"}</h3>
@@ -717,7 +795,7 @@ const favoritesCount = sermons.filter(
                   </button>
                 </div>
 
-                <div style={viewMode === "grid" ? gridStyle : listStyle}>
+                <div style={viewMode === "grid" ? gridStyle : listStyle} className={viewMode === "grid" ? "pc-sermon-grid" : "pc-sermon-list"}>
                   {groupedByCategory[category].map((sermon) => (
                     <SermonCard
                       key={sermon.id}
@@ -737,8 +815,36 @@ const favoritesCount = sermons.filter(
           ) : (
             <p style={emptyText}>No sermons found.</p>
           )
+        ) : activeTab === "tags" ? (
+          Object.keys(groupedByTag).length > 0 ? (
+            Object.keys(groupedByTag).map((tag) => (
+              <div key={tag} style={{ marginBottom: "35px" }}>
+                <div style={categoryHeader}>
+                  <h2 style={{ color: "#f59e0b", margin: 0 }}>#{tag}</h2>
+                </div>
+
+                <div style={viewMode === "grid" ? gridStyle : listStyle} className={viewMode === "grid" ? "pc-sermon-grid" : "pc-sermon-list"}>
+                  {groupedByTag[tag].map((sermon) => (
+                    <SermonCard
+                      key={`${tag}-${sermon.id}`}
+                      sermon={sermon}
+                      viewMode={viewMode}
+                      activeTab={activeTab}
+                      navigate={navigate}
+                      toggleFavorite={toggleFavorite}
+                      moveToTrash={moveToTrash}
+                      restoreSermon={restoreSermon}
+                      openShareModal={openShareModal}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))
+          ) : (
+            <p style={emptyText}>No tagged sermons found.</p>
+          )
         ) : (
-          <div style={viewMode === "grid" ? gridStyle : listStyle}>
+          <div style={viewMode === "grid" ? gridStyle : listStyle} className={viewMode === "grid" ? "pc-sermon-grid" : "pc-sermon-list"}>
             {filteredSermons.length > 0 ? (
               filteredSermons.map((sermon) => (
                 <SermonCard
@@ -838,7 +944,7 @@ function SermonCard({
 
   return (
     <div
-      style={viewMode === "grid" ? cardStyle : listCardStyle}
+      style={viewMode === "grid" ? cardStyle : listCardStyle} className="pc-sermon-card"
       onClick={() => {
         if (activeTab !== "trash") {
           navigate(`/editor/${sermon.id}`);
@@ -930,325 +1036,6 @@ function SermonCard({
   );
 }
 
-const pageStyle = {
-  minHeight: "100vh",
-  display: "flex",
-  background: "#020617",
-  color: "white",
-  fontFamily: "Arial, sans-serif",
-};
-
-const sidebarStyle = {
-  width: "280px",
-  background: "#0f172a",
-  padding: "30px",
-  borderRight: "1px solid #1e293b",
-};
-
-const brandBox = {
-  borderBottom: "1px solid #1e293b",
-  paddingBottom: "22px",
-};
-
-const brandTitle = {
-  margin: 0,
-  color: "white",
-  fontSize: "22px",
-  lineHeight: "1.1",
-  letterSpacing: "0.5px",
-};
-
-const brandScripture = {
-  color: "#f59e0b",
-  fontWeight: "bold",
-  margin: "10px 0 8px",
-  lineHeight: "1.4",
-};
-
-const poweredBy = {
-  color: "#94a3b8",
-  fontSize: "12px",
-  lineHeight: "1.5",
-  margin: 0,
-};
-
-const mainStyle = { flex: 1, padding: "40px" };
-const mutedText = { color: "#94a3b8" };
-
-const getNavStyle = (active) => ({
-  padding: "12px",
-  color: active ? "#000" : "#cbd5e1",
-  background: active ? "#f59e0b" : "transparent",
-  borderRadius: "10px",
-  cursor: "pointer",
-  fontWeight: active ? "bold" : "normal",
-  display: "flex",
-  alignItems: "center",
-  gap: "8px",
-});
-
-const logoutNavStyle = {
-  padding: "12px",
-  color: "#fecaca",
-  background: "transparent",
-  borderRadius: "10px",
-  cursor: "pointer",
-  fontWeight: "bold",
-  display: "flex",
-  alignItems: "center",
-  gap: "8px",
-  marginTop: "20px",
-};
-
-const headingStyle = { margin: 0, fontSize: "48px", lineHeight: "1.1" };
-const subtitleStyle = { color: "#94a3b8", marginTop: "10px" };
-
-const topBarStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  marginBottom: "30px",
-  flexWrap: "wrap",
-  gap: "20px",
-};
-
-const topActions = {
-  display: "flex",
-  alignItems: "center",
-  gap: "14px",
-};
-
-const viewToggle = { display: "flex", gap: "6px" };
-
-const viewButton = {
-  background: "#1e293b",
-  border: "1px solid #334155",
-  color: "white",
-  padding: "10px",
-  borderRadius: "8px",
-  cursor: "pointer",
-};
-
-const activeViewButton = {
-  ...viewButton,
-  background: "#f59e0b",
-  color: "#000",
-};
-
-const newButtonStyle = {
-  background: "#f59e0b",
-  color: "#000",
-  padding: "12px 18px",
-  borderRadius: "10px",
-  textDecoration: "none",
-  fontWeight: "bold",
-  display: "flex",
-  alignItems: "center",
-  gap: "8px",
-};
-
-const searchBoxStyle = {
-  background: "#0f172a",
-  border: "1px solid #1e293b",
-  padding: "14px",
-  borderRadius: "12px",
-  display: "flex",
-  alignItems: "center",
-  gap: "10px",
-  marginBottom: "30px",
-};
-
-const searchInputStyle = {
-  flex: 1,
-  background: "transparent",
-  border: "none",
-  outline: "none",
-  color: "white",
-  fontSize: "16px",
-};
-
-const categoryHeader = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: "12px",
-  marginBottom: "15px",
-  flexWrap: "wrap",
-};
-
-const renameCategoryButton = {
-  background: "#1e293b",
-  color: "white",
-  border: "1px solid #334155",
-  padding: "8px 12px",
-  borderRadius: "8px",
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  gap: "6px",
-  fontWeight: "bold",
-};
-
-const gridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-  gap: "20px",
-};
-
-const listStyle = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "16px",
-};
-
-const cardStyle = {
-  background: "#0f172a",
-  padding: "25px",
-  borderRadius: "16px",
-  border: "1px solid #1e293b",
-  cursor: "pointer",
-};
-
-const listCardStyle = {
-  background: "#0f172a",
-  padding: "20px",
-  borderRadius: "16px",
-  border: "1px solid #1e293b",
-  cursor: "pointer",
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: "20px",
-};
-
-const tagRow = {
-  display: "flex",
-  gap: "6px",
-  flexWrap: "wrap",
-  marginTop: "10px",
-};
-
-const tagChip = {
-  background: "#1e293b",
-  color: "#f59e0b",
-  border: "1px solid #334155",
-  borderRadius: "999px",
-  padding: "4px 8px",
-  fontSize: "12px",
-  fontWeight: "bold",
-};
-
-const buttonRow = {
-  display: "flex",
-  gap: "10px",
-  marginTop: "15px",
-  flexWrap: "wrap",
-};
-
-const smallButton = {
-  background: "#1e293b",
-  color: "white",
-  border: "1px solid #334155",
-  padding: "8px 12px",
-  borderRadius: "8px",
-  cursor: "pointer",
-};
-
-const preachButton = {
-  background: "#f59e0b",
-  color: "#000",
-  border: "none",
-  padding: "8px 12px",
-  borderRadius: "8px",
-  cursor: "pointer",
-  fontWeight: "bold",
-};
-
-const favoriteButton = {
-  background: "#1e293b",
-  color: "#f59e0b",
-  border: "1px solid #334155",
-  padding: "8px 12px",
-  borderRadius: "8px",
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-};
-
-const trashButton = {
-  background: "#dc2626",
-  color: "white",
-  border: "none",
-  padding: "8px 12px",
-  borderRadius: "8px",
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-};
-
-const restoreButton = {
-  background: "#16a34a",
-  color: "white",
-  border: "none",
-  padding: "10px 14px",
-  borderRadius: "8px",
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  gap: "6px",
-};
-
-const emptyText = {
-  color: "#94a3b8",
-  fontSize: "18px",
-};
-
-
-const sidebarStorageCardStyle = {
-  marginTop: "22px",
-  background: "#020617",
-  border: "1px solid rgba(134, 239, 172, 0.35)",
-  borderRadius: "14px",
-  padding: "12px",
-  color: "#e5e7eb",
-  boxShadow: "0 12px 35px rgba(0,0,0,0.25)",
-};
-
-const sidebarStorageHeaderStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: "8px",
-  fontSize: "13px",
-  marginBottom: "10px",
-  color: "#d9f99d",
-};
-
-const sidebarStorageBarOuter = {
-  height: "8px",
-  background: "#0f172a",
-  borderRadius: "999px",
-  overflow: "hidden",
-  border: "1px solid #1e293b",
-  marginBottom: "8px",
-};
-
-const sidebarStorageBarInner = {
-  height: "100%",
-  borderRadius: "999px",
-  transition: "width 0.3s ease",
-};
-
-const sidebarStorageTextStyle = {
-  margin: "4px 0 0",
-  color: "#94a3b8",
-  fontSize: "12px",
-  lineHeight: "1.35",
-};
-
-
-
-
 const shareSmallButton = {
   background: "#1e293b",
   color: "#86efac",
@@ -1293,7 +1080,6 @@ const sharedDateStyle = {
   marginTop: "10px",
 };
 
-
 const deleteConfirmButtonStyle = {
   background: "#dc2626",
   color: "white",
@@ -1312,33 +1098,6 @@ const cancelModalButtonStyle = {
   borderRadius: "10px",
   fontWeight: "bold",
   cursor: "pointer",
-};
-
-const statsRowStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(3, 1fr)",
-  gap: "16px",
-  marginBottom: "20px",
-};
-
-const statsCardStyle = {
-  background: "#0f172a",
-  border: "1px solid #1e293b",
-  borderRadius: "14px",
-  padding: "18px",
-  textAlign: "center",
-};
-
-const statsNumberStyle = {
-  color: "#f59e0b",
-  fontSize: "32px",
-  fontWeight: "bold",
-};
-
-const statsLabelStyle = {
-  color: "#94a3b8",
-  fontSize: "14px",
-  marginTop: "6px",
 };
 
 export default Dashboard;

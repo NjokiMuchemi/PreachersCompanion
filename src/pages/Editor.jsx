@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "../styles/appPolish.css";
 import mammoth from "mammoth";
 import * as pdfjsLib from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
@@ -826,8 +827,8 @@ Admin contact: njokire@gmail.com`,
   }
 
   return (
-    <div style={pageStyle}>
-      <div style={topBarStyle}>
+    <div style={pageStyle} className="pc-editor-page">
+      <div style={topBarStyle} className="pc-editor-topbar">
         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
           <button
             style={dashboardButton}
@@ -848,7 +849,7 @@ Admin contact: njokire@gmail.com`,
             <h1 style={headingStyle}>{id ? "Edit Sermon" : "Sermon Editor"}</h1>
 
             <p style={subtitleStyle}>
-              Prepare and organize your ministry messages.
+              Import, Create, Organize and Save your Sermons.
             </p>
 
             <p style={saveStatusStyle}>{saveStatus}</p>
@@ -915,7 +916,7 @@ Admin contact: njokire@gmail.com`,
         </div>
       )}
 
-      <div style={cardStyle}>
+      <div style={cardStyle} className="pc-editor-details">
         <input
           type="text"
           placeholder="Sermon Title"
@@ -1084,8 +1085,8 @@ Admin contact: njokire@gmail.com`,
         </div>
       )}
 
-      <div style={editorCard}>
-        <div style={toolbarStyle}>
+      <div style={editorCard} className="pc-editor-card">
+        <div style={toolbarStyle} className="pc-editor-toolbar">
         
           <button style={toolButton} onClick={() => editor.chain().focus().undo().run()}>
   ↶       </button>
@@ -1242,7 +1243,7 @@ Admin contact: njokire@gmail.com`,
 
         <EditorContent
           editor={editor}
-          className="sermon-editor"
+          className="sermon-editor pc-editor-canvas"
           style={editorContentStyle}
         />
       </div>
@@ -1319,38 +1320,47 @@ Admin contact: njokire@gmail.com`,
 
 const pageStyle = {
   minHeight: "100vh",
-  background: "#020617",
+  background:
+    "radial-gradient(circle at top left, rgba(52,81,141,0.38), transparent 34%), linear-gradient(135deg, #020617 0%, #071a3f 48%, #020617 100%)",
   color: "white",
-  padding: "40px",
+  padding: "32px",
   fontFamily: "Arial, sans-serif",
+  boxSizing: "border-box",
 };
 
 const topBarStyle = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  marginBottom: "30px",
+  marginBottom: "26px",
   gap: "20px",
+  background: "rgba(15, 23, 42, 0.68)",
+  border: "1px solid rgba(141,184,227,0.18)",
+  borderRadius: "18px",
+  padding: "18px 20px",
+  boxShadow: "0 18px 45px rgba(0,0,0,0.25)",
 };
 
-const headingStyle = { margin: 0, fontSize: "48px", lineHeight: "1.1" };
-const subtitleStyle = { color: "#94a3b8", marginTop: "10px" };
-const saveStatusStyle = { color: "#f59e0b", fontSize: "14px", marginTop: "5px" };
+const headingStyle = { margin: 0, fontSize: "44px", lineHeight: "1.1", color: "#ffffff" };
+const subtitleStyle = { color: "#8db8e3", marginTop: "10px" };
+const saveStatusStyle = { color: "#ffba08", fontSize: "14px", marginTop: "5px", fontWeight: "bold" };
 
 const cardStyle = {
-  background: "#0f172a",
-  padding: "25px",
-  borderRadius: "16px",
-  border: "1px solid #1e293b",
-  marginBottom: "25px",
+  background: "linear-gradient(180deg, rgba(15, 35, 82, 0.96), rgba(9, 24, 57, 0.96))",
+  padding: "22px",
+  borderRadius: "18px",
+  border: "1px solid rgba(141,184,227,0.24)",
+  marginBottom: "22px",
+  boxShadow: "0 16px 45px rgba(0,0,0,0.24)",
 };
 
 const aiCard = {
-  background: "#0f172a",
-  border: "1px solid #1e293b",
+  background: "linear-gradient(180deg, rgba(15, 35, 82, 0.96), rgba(9, 24, 57, 0.96))",
+  border: "1px solid rgba(141,184,227,0.24)",
   padding: "20px",
-  borderRadius: "16px",
-  marginBottom: "25px",
+  borderRadius: "18px",
+  marginBottom: "22px",
+  boxShadow: "0 16px 45px rgba(0,0,0,0.22)",
 };
 
 const aiHeader = {
@@ -1369,9 +1379,9 @@ const aiRow = {
 const aiSelect = {
   flex: 1,
   minWidth: "240px",
-  background: "#1e293b",
+  background: "rgba(2, 6, 23, 0.32)",
   color: "white",
-  border: "1px solid #334155",
+  border: "1px solid rgba(141,184,227,0.36)",
   padding: "12px",
   borderRadius: "10px",
   fontSize: "16px",
@@ -1390,19 +1400,20 @@ const aiButton = {
 const aiPromptBox = {
   width: "100%",
   minHeight: "80px",
-  background: "#020617",
+  background: "rgba(2, 6, 23, 0.32)",
   color: "white",
-  border: "1px solid #334155",
+  border: "1px solid rgba(141,184,227,0.36)",
   borderRadius: "10px",
   padding: "12px",
   fontSize: "15px",
   boxSizing: "border-box",
   marginBottom: "12px",
+  outline: "none",
 };
 
 const aiResultBox = {
-  background: "#020617",
-  border: "1px solid #334155",
+  background: "rgba(2, 6, 23, 0.38)",
+  border: "1px solid rgba(141,184,227,0.3)",
   borderRadius: "10px",
   padding: "15px",
   marginTop: "12px",
@@ -1427,11 +1438,12 @@ const insertAiButton = {
 };
 
 const bibleCard = {
-  background: "#0f172a",
-  border: "1px solid #1e293b",
+  background: "linear-gradient(180deg, rgba(15, 35, 82, 0.96), rgba(9, 24, 57, 0.96))",
+  border: "1px solid rgba(141,184,227,0.24)",
   padding: "20px",
-  borderRadius: "16px",
-  marginBottom: "25px",
+  borderRadius: "18px",
+  marginBottom: "22px",
+  boxShadow: "0 16px 45px rgba(0,0,0,0.22)",
 };
 
 const bibleHeader = {
@@ -1453,16 +1465,17 @@ const bibleInput = {
   minWidth: "240px",
   padding: "12px",
   borderRadius: "10px",
-  border: "1px solid #334155",
-  background: "#1e293b",
+  border: "1px solid rgba(141,184,227,0.36)",
+  background: "rgba(2, 6, 23, 0.32)",
   color: "white",
   fontSize: "16px",
+  outline: "none",
 };
 
 const translationSelect = {
-  background: "#1e293b",
+  background: "rgba(2, 6, 23, 0.32)",
   color: "white",
-  border: "1px solid #334155",
+  border: "1px solid rgba(141,184,227,0.36)",
   padding: "12px",
   borderRadius: "10px",
   fontSize: "16px",
@@ -1492,8 +1505,8 @@ const insertVerseButton = {
 };
 
 const bibleResultBox = {
-  background: "#020617",
-  border: "1px solid #334155",
+  background: "rgba(2, 6, 23, 0.38)",
+  border: "1px solid rgba(141,184,227,0.3)",
   padding: "15px",
   borderRadius: "10px",
   marginTop: "15px",
@@ -1503,47 +1516,50 @@ const bibleResultBox = {
 };
 
 const editorCard = {
-  background: "#0f172a",
-  borderRadius: "16px",
-  border: "1px solid #1e293b",
+  background: "linear-gradient(180deg, rgba(15, 35, 82, 0.96), rgba(9, 24, 57, 0.96))",
+  borderRadius: "18px",
+  border: "1px solid rgba(141,184,227,0.24)",
   overflow: "hidden",
+  boxShadow: "0 20px 55px rgba(0,0,0,0.3)",
+  marginBottom: "28px",
 };
 
 const toolbarStyle = {
   display: "flex",
-  gap: "10px",
-  padding: "15px",
-  borderBottom: "1px solid #1e293b",
-  background: "#111827",
+  gap: "9px",
+  padding: "14px",
+  borderBottom: "1px solid rgba(141,184,227,0.22)",
+  background: "rgba(2, 6, 23, 0.5)",
   flexWrap: "wrap",
+  alignItems: "center",
 };
 
 const toolButton = {
-  background: "#1e293b",
-  border: "1px solid #334155",
+  background: "rgba(15, 35, 82, 0.92)",
+  border: "1px solid rgba(141,184,227,0.32)",
   color: "white",
   padding: "10px",
-  borderRadius: "8px",
+  borderRadius: "9px",
   cursor: "pointer",
   display: "flex",
   alignItems: "center",
 };
 
 const selectStyle = {
-  background: "#1e293b",
+  background: "rgba(15, 35, 82, 0.92)",
   color: "white",
-  border: "1px solid #334155",
+  border: "1px solid rgba(141,184,227,0.32)",
   padding: "10px",
-  borderRadius: "8px",
+  borderRadius: "9px",
   cursor: "pointer",
 };
 
 const colorLabel = {
-  background: "#1e293b",
-  border: "1px solid #334155",
+  background: "rgba(15, 35, 82, 0.92)",
+  border: "1px solid rgba(141,184,227,0.32)",
   color: "white",
   padding: "8px 10px",
-  borderRadius: "8px",
+  borderRadius: "9px",
   cursor: "pointer",
   display: "flex",
   alignItems: "center",
@@ -1603,36 +1619,43 @@ const colorInput = {
 };
 
 const editorContentStyle = {
-  minHeight: "500px",
-  background: "#020617",
-  color: "white",
+  minHeight: "520px",
+  maxHeight: "70vh",
+  overflowY: "auto",
+  background: "#390ab3",
+  color: "#ffffff",
   fontSize: "17px",
   lineHeight: "1.7",
+  padding: "28px",
+  cursor: "text",
+  boxSizing: "border-box",
 };
 
 const titleInput = {
   width: "100%",
   padding: "18px",
-  marginBottom: "20px",
+  marginBottom: "18px",
   borderRadius: "12px",
-  border: "1px solid #334155",
-  background: "#1e293b",
+  border: "1px solid rgba(141,184,227,0.36)",
+  background: "rgba(2, 6, 23, 0.32)",
   color: "white",
   fontSize: "28px",
   fontWeight: "bold",
   boxSizing: "border-box",
+  outline: "none",
 };
 
 const inputStyle = {
   width: "100%",
   padding: "14px",
-  marginBottom: "16px",
+  marginBottom: "14px",
   borderRadius: "10px",
-  border: "1px solid #334155",
-  background: "#1e293b",
+  border: "1px solid rgba(141,184,227,0.36)",
+  background: "rgba(2, 6, 23, 0.32)",
   color: "white",
   fontSize: "16px",
   boxSizing: "border-box",
+  outline: "none",
 };
 
 const primaryButton = {
@@ -1649,9 +1672,9 @@ const primaryButton = {
 };
 
 const secondaryButton = {
-  background: "#1e293b",
+  background: "rgba(15, 35, 82, 0.92)",
   color: "white",
-  border: "1px solid #334155",
+  border: "1px solid rgba(141,184,227,0.36)",
   padding: "12px 18px",
   borderRadius: "10px",
   cursor: "pointer",
@@ -1676,11 +1699,12 @@ const detailsGridStyle = {
 };
 
 const shareBox = {
-  background: "#0f172a",
-  border: "1px solid #334155",
+  background: "linear-gradient(180deg, rgba(15, 35, 82, 0.96), rgba(9, 24, 57, 0.96))",
+  border: "1px solid rgba(141,184,227,0.24)",
   padding: "18px",
-  borderRadius: "16px",
+  borderRadius: "18px",
   marginBottom: "20px",
+  boxShadow: "0 16px 45px rgba(0,0,0,0.22)",
 };
 
 const shareTitle = {
@@ -1706,10 +1730,11 @@ const shareInput = {
   minWidth: "260px",
   padding: "12px",
   borderRadius: "10px",
-  border: "1px solid #334155",
-  background: "#1e293b",
+  border: "1px solid rgba(141,184,227,0.36)",
+  background: "rgba(2, 6, 23, 0.32)",
   color: "white",
   fontSize: "15px",
+  outline: "none",
 };
 
 const shareButton = {
@@ -1759,9 +1784,9 @@ const deleteButton = {
 };
 
 const dashboardButton = {
-  background: "#1e293b",
+  background: "rgba(15, 35, 82, 0.92)",
   color: "white",
-  border: "1px solid #334155",
+  border: "1px solid rgba(141,184,227,0.36)",
   padding: "12px 16px",
   borderRadius: "10px",
   cursor: "pointer",

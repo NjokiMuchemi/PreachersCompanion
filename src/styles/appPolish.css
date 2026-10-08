@@ -1,0 +1,50 @@
+/* Preacher's Companion | presentation layer only. No business logic is changed. */
+:root { --pc-bg:#020617; --pc-panel:#0f172a; --pc-raised:#17243b; --pc-line:#334155; --pc-gold:#fbbf24; --pc-copy:#cbd5e1; }
+.pc-dashboard, .pc-editor-page { font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif !important; letter-spacing:0 !important; }
+.pc-dashboard *, .pc-editor-page * { box-sizing:border-box; }
+.pc-dashboard button, .pc-editor-page button, .pc-dashboard a, .pc-editor-page a { transition:background-color .16s ease,border-color .16s ease,transform .16s ease; }
+.pc-dashboard button:hover, .pc-editor-page button:hover { filter:brightness(1.08); }
+.pc-dashboard :is(button,a,input,select):focus-visible,.pc-editor-page :is(button,a,input,select,textarea):focus-visible { outline:2px solid var(--pc-gold) !important; outline-offset:2px; }
+/* Independent sidebar and content scrolling */
+.pc-dashboard { height:100dvh !important; min-height:0 !important; overflow:hidden !important; background:var(--pc-bg) !important; }
+.pc-dashboard-sidebar { width:clamp(232px,21vw,286px) !important; height:100dvh !important; min-height:0 !important; padding:28px 22px !important; overflow-y:auto !important; scrollbar-width:thin; scrollbar-color:#475569 transparent; background:linear-gradient(180deg,#111f38,#0b1428) !important; }
+.pc-dashboard-sidebar nav { margin-top:22px !important; }
+.pc-dashboard-sidebar nav > * { margin-bottom:3px !important; font-size:15px !important; min-height:40px; }
+.pc-dashboard-sidebar h2 { font-size:20px !important; line-height:1.2 !important; letter-spacing:.02em !important; }
+.pc-dashboard-main { min-width:0 !important; height:100dvh !important; overflow-y:auto !important; padding:clamp(24px,3vw,44px) !important; scrollbar-width:thin; scrollbar-color:#475569 transparent; }
+.pc-dashboard-topbar { display:flex !important; align-items:center !important; flex-wrap:wrap !important; gap:18px !important; margin-bottom:24px !important; }
+.pc-dashboard-topbar h1 { font-size:clamp(30px,3vw,42px) !important; letter-spacing:-.035em !important; font-weight:750 !important; margin:0 !important; }
+.pc-dashboard-topbar p { font-size:15px !important; line-height:1.5 !important; }
+.pc-dashboard-stats { gap:14px !important; margin-bottom:20px !important; }
+.pc-dashboard-stats > div { min-width:0; padding:17px 14px !important; background:linear-gradient(160deg,#14223b,#0f172a) !important; border:1px solid #293850 !important; border-radius:14px !important; }
+.pc-dashboard-stats > div > div:first-child { font-size:clamp(25px,2.5vw,34px) !important; line-height:1.1 !important; }
+.pc-dashboard-search { padding:10px 16px !important; min-height:52px !important; margin-bottom:22px !important; border:1px solid #334155 !important; border-radius:12px !important; }
+.pc-dashboard-search input { min-width:0 !important; font-size:15px !important; }
+.pc-sermon-grid { grid-template-columns:repeat(auto-fill,minmax(min(100%,270px),1fr)) !important; gap:16px !important; }
+.pc-sermon-card { min-width:0; background:linear-gradient(165deg,#142139,#101827) !important; border:1px solid #2b3a51 !important; border-radius:15px !important; padding:20px !important; box-shadow:0 10px 26px rgba(0,0,0,.12); }
+.pc-sermon-card:hover { border-color:#65758e !important; }
+.pc-sermon-card h2,.pc-sermon-card h3 { overflow-wrap:anywhere; font-size:clamp(17px,1.35vw,21px) !important; line-height:1.32 !important; letter-spacing:-.015em; }
+.pc-sermon-card p { overflow-wrap:anywhere; font-size:14px !important; line-height:1.5 !important; }
+.pc-sermon-card button { min-height:34px; }
+/* Editor page and writing experience */
+.pc-editor-page { padding:clamp(16px,2.4vw,34px) !important; background:linear-gradient(145deg,#07132b 0%,#020617 65%) !important; min-height:100dvh !important; }
+.pc-editor-topbar { padding:20px 24px !important; margin-bottom:18px !important; gap:16px !important; border:1px solid #2b3b55 !important; border-radius:16px !important; background:#101c32 !important; flex-wrap:wrap !important; }
+.pc-editor-topbar h1 { font-size:clamp(26px,2.7vw,38px) !important; letter-spacing:-.03em !important; line-height:1.15 !important; }
+.pc-editor-topbar p { font-size:14px !important; }
+.pc-editor-details { background:#111f39 !important; border:1px solid #314563 !important; border-radius:16px !important; padding:clamp(16px,2vw,26px) !important; margin-bottom:18px !important; }
+.pc-editor-details input { max-width:100%; }
+.pc-editor-details input::placeholder { color:#94a3b8; opacity:1; }
+.pc-editor-card { border-radius:16px !important; overflow:hidden !important; border:1px solid #344767 !important; background:#101a30 !important; }
+.pc-editor-toolbar { display:flex !important; flex-wrap:wrap !important; align-items:center !important; gap:8px !important; padding:14px !important; background:#101d36 !important; border-bottom:1px solid #334155 !important; }
+.pc-editor-toolbar button, .pc-editor-toolbar select { border-radius:9px !important; min-height:38px; }
+.pc-editor-canvas { background:#f8fafc !important; color:#172033 !important; overflow-y:auto !important; min-height:380px !important; max-height:min(68vh,850px) !important; scrollbar-width:thin; scrollbar-color:#94a3b8 #e2e8f0; }
+.pc-editor-canvas .ProseMirror { background:#f8fafc !important; color:#172033 !important; caret-color:#0f172a !important; min-height:450px !important; padding:clamp(22px,4vw,52px) !important; font-size:17px !important; line-height:1.85 !important; outline:none !important; overflow-wrap:break-word; }
+.pc-editor-canvas .ProseMirror :is(p,li,h1,h2,h3) { color:inherit; }
+.pc-editor-canvas .ProseMirror :is(h1,h2,h3) { color:#0f172a; }
+.pc-editor-canvas .ProseMirror blockquote { color:#475569 !important; }
+.pc-editor-canvas .ProseMirror:focus { outline:none !important; }
+/* All other application pages retain their logic and inline design; improve accessible controls globally. */
+button { font-family:inherit; }
+input,textarea,select { font-family:inherit; }
+@media(max-width:900px) { .pc-dashboard-sidebar { width:210px !important; padding:20px 14px !important; } .pc-dashboard-main { padding:20px !important; } .pc-dashboard-stats { grid-template-columns:repeat(3,minmax(0,1fr)) !important; } .pc-editor-topbar { padding:18px !important; } }
+@media(max-width:650px) { .pc-dashboard { display:block !important; height:auto !important; overflow:visible !important; } .pc-dashboard-sidebar { width:100% !important; height:auto !important; max-height:260px !important; border-right:0 !important; border-bottom:1px solid #334155 !important; } .pc-dashboard-main { height:auto !important; min-height:70dvh !important; overflow:visible !important; padding:18px !important; } .pc-dashboard-stats { gap:8px !important; } .pc-dashboard-stats > div { padding:12px 7px !important; } .pc-dashboard-stats > div > div:last-child { font-size:11px !important; } .pc-editor-page { padding:12px !important; } .pc-editor-topbar { padding:14px !important; } .pc-editor-toolbar { gap:6px !important; } .pc-editor-canvas .ProseMirror { padding:20px !important; } }

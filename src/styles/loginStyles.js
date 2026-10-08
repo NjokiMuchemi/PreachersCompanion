@@ -4,9 +4,9 @@ import { shadows } from "../theme/shadows";
 import { typography } from "../theme/typography";
 
 export const pageStyle = {
-  width: "100vw",
-  minHeight: "100svh",
-  overflow: "auto",
+  width: "100%",
+  minHeight: "100dvh",
+  overflow: "hidden",
   background: colors.page,
   display: "flex",
   flexDirection: "column",
@@ -17,29 +17,31 @@ export const pageStyle = {
 };
 
 export const loginShell = {
-  width: "100vw",
-  height: "100vh",
+  width: "100%",
+  height: "100dvh",
+  minHeight: "0",
   display: "grid",
-  gridTemplateColumns: "33% 67%",
+  gridTemplateColumns: "minmax(0, 34%) minmax(0, 66%)",
   overflow: "hidden",
   background: colors.page,
 };
 
 export const formPanel = {
-  minHeight: "100svh",
-  overflow: "auto",
-  padding: "40px 24px",
+  minHeight: 0,
+  minWidth: 0,
+  overflowY: "auto",
+  padding: "clamp(22px, 3vh, 36px) clamp(24px, 3vw, 48px)",
   background: gradients.panel,
   display: "flex",
   flexDirection: "column",
-  justifyContent: "flex-start",
+  justifyContent: "center",
   boxSizing: "border-box",
 };
 
 export const formContent = {
   width: "100%",
-  maxWidth: "520px",
-  maxHeight: "94vh",
+  maxWidth: "430px",
+  margin: "auto",
   display: "flex",
   flexDirection: "column",
   justifyContent: "center",
@@ -48,13 +50,13 @@ export const brandHeader = {
   display: "flex",
   alignItems: "center",
   gap: "16px",
-  marginBottom: "clamp(24px, 4vh, 42px)",
+  marginBottom: "clamp(18px, 3vh, 28px)",
 };
 
 export const brandLogoStyle = {
-  width: "70px",
-  height: "70px",
-  minWidth: "70px",
+  width: "clamp(46px, 4vw, 62px)",
+  height: "clamp(46px, 4vw, 62px)",
+  minWidth: "46px",
   objectFit: "contain",
   display: "block",
   flexShrink: 0,
@@ -63,7 +65,7 @@ export const brandTitle = {
   margin: "0",
   textTransform: "uppercase",
   letterSpacing: "1px",
-  fontSize: "clamp(24px, 2.5vw, 46px)",
+  fontSize: "clamp(21px, 2vw, 31px)",
   fontWeight: "900",
   lineHeight: "1.1",
   display: "flex",
@@ -83,7 +85,7 @@ export const titleSecondWord = {
 
 export const headlineBlock = {
   marginTop: "0px",
-  marginBottom: "24px",
+  marginBottom: "clamp(14px, 2vh, 22px)",
 };
 
 export const mainHeadline = {
@@ -91,7 +93,7 @@ export const mainHeadline = {
   margin: "0",
   textTransform: "uppercase",
   letterSpacing: "1px",
-  fontSize: "clamp(13px, 1.1vw, 16px)",
+  fontSize: "clamp(12px, 1vw, 14px)",
   fontWeight: "600",
   fontStyle: "italic",
   lineHeight: "1.3",
@@ -99,7 +101,7 @@ export const mainHeadline = {
 
 export const scriptureStyle = {
   color: colors.heading,
-  fontSize: "clamp(13px, 0.95vw, 16px)",
+  fontSize: "clamp(12px, 0.95vw, 14px)",
   lineHeight: "1.65",
   fontStyle: "italic",
   borderLeft: `4px solid ${colors.amber400}`,
@@ -117,7 +119,7 @@ export const formBox = {
 
 export const inputStyle = {
   width: "100%",
-  padding: "13px 15px",
+  padding: "12px 14px",
   marginBottom: "12px",
   borderRadius: "12px",
   border: `1px solid ${colors.border}`,
@@ -142,7 +144,7 @@ export const forgotLinkStyle = {
 
 export const buttonStyle = {
   width: "100%",
-  padding: "clamp(14px, 1.8vh, 18px)",
+  padding: "13px 16px",
   background: gradients.amber,
   color: colors.slate950,
   border: "none",
@@ -189,7 +191,7 @@ export const linkStyle = {
 };
 
 export const poweredBox = {
-  marginTop: "18px",
+  marginTop: "clamp(14px, 2vh, 20px)",
   paddingTop: "12px",
   borderTop: `1px solid ${colors.border}`,
   color: colors.text,
@@ -211,31 +213,22 @@ export const heroPanel = {
   height: "100%",
   minHeight: 0,
   overflow: "hidden",
-  background: colors.page,
-};
-
-export const heroImage = {
-  width: "100%",
-  height: "100%",
-  objectFit: "cover",
-  objectPosition: "center center",
-  display: "block",
-  filter: "saturate(1.08) contrast(1.06)",
+  background: "radial-gradient(ellipse at 78% 36%, #153d83 0%, #091b43 38%, #020617 82%)",
 };
 
 export const heroOverlay = {
   position: "absolute",
   inset: 0,
-  background: gradients.heroOverlay,
+  background: "linear-gradient(90deg, rgba(2,6,23,.24), transparent 65%)",
   zIndex: 1,
 };
 
 export const heroTextBlock = {
   position: "absolute",
   zIndex: 2,
-  top: "clamp(55px, 10vh, 120px)",
-  left: "clamp(42px, 5vw, 95px)",
-  maxWidth: "520px",
+  top: "clamp(38px, 7vh, 76px)",
+  left: "clamp(30px, 4vw, 64px)",
+  width: "min(55%, 480px)",
 };
 
 export const heroKicker = {
@@ -243,7 +236,7 @@ export const heroKicker = {
   margin: "0",
   textTransform: "uppercase",
   letterSpacing: "1px",
-  fontSize: "clamp(24px, 2.5vw, 46px)",
+  fontSize: "clamp(22px, 2.4vw, 36px)",
   fontWeight: "900",
   lineHeight: "1",
 };
@@ -252,7 +245,7 @@ export const heroBigTitle = {
   color: colors.amber400,
   margin: "6px 0 18px",
   textTransform: "uppercase",
-  fontSize: "clamp(52px, 5.5vw, 110px)",
+  fontSize: "clamp(48px, 4.7vw, 76px)",
   fontWeight: "900",
   lineHeight: "0.9",
   letterSpacing: "-2px",
@@ -263,8 +256,8 @@ export const heroIntro = {
   margin: 0,
   fontSize: "clamp(12px, 0.95vw, 15px)",
   lineHeight: "1.55",
-  textAlign: "center",
-  fontStyle: "italic",
+  textAlign: "left",
+  fontStyle: "normal",
 };
 // ======================================
 // FEATURE BAR
@@ -273,22 +266,22 @@ export const heroIntro = {
 export const featureBar = {
   position: "absolute",
   zIndex: 2,
-  left: "clamp(34px, 4vw, 78px)",
-  right: "clamp(34px, 4vw, 78px)",
-  bottom: "clamp(30px, 4vh, 54px)",
+  left: "clamp(24px, 3vw, 48px)",
+  right: "clamp(24px, 3vw, 48px)",
+  bottom: "clamp(16px, 2.5vh, 26px)",
   display: "grid",
   gridTemplateColumns: "repeat(4, 1fr)",
-  background: gradients.panel,
+  background: "rgba(5, 15, 37, 0.86)",
   border: `1px solid ${colors.border}`,
-  borderRadius: "22px",
-  padding: "clamp(18px, 2.5vh, 28px)",
+  borderRadius: "16px",
+  padding: "clamp(10px, 1.4vh, 14px) 8px",
   boxShadow: shadows.soft,
   backdropFilter: "blur(10px)",
 };
 
 export const featureItem = {
   textAlign: "center",
-  padding: "0 clamp(10px, 1.4vw, 24px)",
+  padding: "0 clamp(5px, 0.9vw, 14px)",
   borderRight: `1px solid ${colors.border}`,
 };
 
@@ -299,20 +292,20 @@ export const featureItemLast = {
 
 export const featureIcon = {
   color: colors.amber400,
-  fontSize: "clamp(24px, 2vw, 38px)",
-  marginBottom: "10px",
+  fontSize: "clamp(19px, 1.5vw, 26px)",
+  marginBottom: "5px",
 };
 
 export const featureTitle = {
   color: colors.amber400,
   display: "block",
-  fontSize: "clamp(13px, 1vw, 18px)",
+  fontSize: "clamp(11px, 0.9vw, 14px)",
   textTransform: "uppercase",
   marginBottom: "6px",
 };
 
 export const featureText = {
   color: colors.text,
-  fontSize: "clamp(11px, 0.9vw, 15px)",
+  fontSize: "clamp(10px, 0.8vw, 12px)",
   lineHeight: "1.4",
 };

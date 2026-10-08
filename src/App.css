@@ -182,3 +182,24 @@
     border-right-color: var(--border);
   }
 }
+/* Editor typing area only */
+.sermon-editor .ProseMirror {
+  color: #0f172a !important;
+  caret-color: #05379b !important;
+  background: #ffffff !important;
+  min-height: 520px;
+  padding: 28px;
+  outline: none;
+}
+
+.sermon-editor .ProseMirror p,
+.sermon-editor .ProseMirror li,
+.sermon-editor .ProseMirror h1,
+.sermon-editor .ProseMirror h2,
+.sermon-editor .ProseMirror h3 {
+  color: #0f172a;
+}
+
+.sermon-editor .ProseMirror:focus {
+  outline: none;
+}
