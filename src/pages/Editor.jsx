@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "../styles/editorDropdowns.css";
 import "../styles/appPolish.css";
 import mammoth from "mammoth";
 import * as pdfjsLib from "pdfjs-dist";
