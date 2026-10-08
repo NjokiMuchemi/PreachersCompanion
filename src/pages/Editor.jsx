@@ -24,6 +24,9 @@ import {
   Search,
   ArrowLeft,
   Share2,
+  Eraser,
+  Smile,
+  ListOrdered,
 } from "lucide-react";
 
 import jsPDF from "jspdf";
@@ -99,6 +102,36 @@ const FontSize = Extension.create({
   },
 });
 
+// Paragraph line-height and spacing are stored in the sermon HTML.
+const ParagraphSpacing = Extension.create({
+  name: "paragraphSpacing",
+  addGlobalAttributes() {
+    return [{
+      types: ["paragraph", "heading"],
+      attributes: {
+        lineHeight: {
+          default: null,
+          parseHTML: element => element.style.lineHeight || null,
+          renderHTML: attrs => attrs.lineHeight ? { style: `line-height: ${attrs.lineHeight}` } : {},
+        },
+        paragraphGap: {
+          default: null,
+          parseHTML: element => element.style.marginBottom || null,
+          renderHTML: attrs => attrs.paragraphGap ? { style: `margin-bottom: ${attrs.paragraphGap}` } : {},
+        },
+      },
+    }];
+  },
+});
+
+const CASE_MODES = {
+  upper: text => text.toLocaleUpperCase(),
+  lower: text => text.toLocaleLowerCase(),
+  title: text => text.toLocaleLowerCase().replace(/\b\p{L}/gu, letter => letter.toLocaleUpperCase()),
+  sentence: text => text.toLocaleLowerCase().replace(/(^|[.!?]\s+)(\p{L})/gu, (_, prefix, letter) => prefix + letter.toLocaleUpperCase()),
+  toggle: text => [...text].map(char => char === char.toLocaleUpperCase() ? char.toLocaleLowerCase() : char.toLocaleUpperCase()).join(""),
+};
+
 function Editor() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -138,6 +171,7 @@ function Editor() {
       Color,
       FontFamily,
       FontSize,
+      ParagraphSpacing,
       Image,
       Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
@@ -145,6 +179,33 @@ function Editor() {
     content: "",
     onUpdate: () => markUnsaved(),
   });
+
+  function changeSelectedCase(mode) {
+    if (!editor || !CASE_MODES[mode]) return;
+    const { from, to, empty } = editor.state.selection;
+    if (empty) {
+      setModal({ icon: "ℹ️", title: "Select Text", message: "Highlight the words you want to change, then choose a case." });
+      return;
+    }
+    const selectionText = editor.state.doc.textBetween(from, to, "\n");
+    if (!selectionText) return;
+    // Transform only the selected range; other sermon content stays unchanged.
+    editor.chain().focus().insertContentAt({ from, to }, CASE_MODES[mode](selectionText)).run();
+  }
+
+  function setParagraphSpacing(attribute, value) {
+    if (!editor) return;
+    const { state, view } = editor;
+    const { from, to } = state.selection;
+    let tr = state.tr;
+    state.doc.nodesBetween(from, to, (node, pos) => {
+      if (node.type.name === "paragraph" || node.type.name === "heading") {
+        tr = tr.setNodeMarkup(pos, undefined, { ...node.attrs, [attribute]: value });
+      }
+    });
+    if (tr.docChanged) view.dispatch(tr);
+    editor.commands.focus();
+  }
 
   useEffect(() => {
     fetchExistingCategories();
@@ -1130,6 +1191,62 @@ Admin contact: njokire@gmail.com`,
             <AlignJustify size={18} />
           </button>
 
+          <button type="button" style={toolButton} title="Numbered list"
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+            <ListOrdered size={18} />
+          </button>
+
+          <label style={colorLabel} title="Change selected text case">
+            Aa
+            <select aria-label="Change case" defaultValue="" style={toolbarInlineSelect}
+              onChange={e => { changeSelectedCase(e.target.value); e.target.value = ""; }}>
+              <option value="" disabled>Change Case</option>
+              <option value="sentence">Sentence case</option>
+              <option value="lower">lowercase</option>
+              <option value="upper">UPPERCASE</option>
+              <option value="title">Title Case</option>
+              <option value="toggle">tOGGLE cASE</option>
+            </select>
+          </label>
+
+          <button type="button" style={toolButton} title="Clear selected text formatting"
+            onClick={() => editor.chain().focus().unsetAllMarks().run()}>
+            <Eraser size={18} /> Clear Format
+          </button>
+
+          <label style={colorLabel}>
+            Spacing
+            <select aria-label="Line spacing" defaultValue="" style={toolbarInlineSelect}
+              onChange={e => { setParagraphSpacing("lineHeight", e.target.value); e.target.value = ""; }}>
+              <option value="" disabled>Line height</option>
+              <option value="1">Single</option>
+              <option value="1.15">1.15</option>
+              <option value="1.5">1.5</option>
+              <option value="2">Double</option>
+            </select>
+            <select aria-label="Paragraph spacing" defaultValue="" style={toolbarInlineSelect}
+              onChange={e => { setParagraphSpacing("paragraphGap", e.target.value); e.target.value = ""; }}>
+              <option value="" disabled>Paragraph gap</option>
+              <option value="0px">None</option>
+              <option value="8px">Small</option>
+              <option value="16px">Medium</option>
+              <option value="24px">Large</option>
+            </select>
+          </label>
+
+          <label style={colorLabel}>
+            <Smile size={18} />
+            <select aria-label="Insert emoji" defaultValue="" style={toolbarInlineSelect}
+              onChange={e => {
+                if (e.target.value) editor.chain().focus().insertContent(e.target.value).run();
+                e.target.value = "";
+              }}>
+              <option value="" disabled>Emoji</option>
+              {["🙏","📖","✝️","❤️","🔥","🕊️","✨","🙌","💡","🌿","👑","🌍","⭐","💛","😊","🎯","📌","✅"].map(emoji =>
+                <option key={emoji} value={emoji}>{emoji}</option>)}
+            </select>
+          </label>
+
           <label style={colorLabel}>
             <Palette size={18} />
             Text
@@ -1797,3 +1914,11 @@ const dashboardButton = {
 };
 
 export default Editor;
+const toolbarInlineSelect = {
+  background: "transparent",
+  color: "#f8fafc",
+  border: "none",
+  maxWidth: "142px",
+  fontSize: "13px",
+  cursor: "pointer",
+};
