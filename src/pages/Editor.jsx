@@ -30,9 +30,7 @@ import {
   ListOrdered,
 } from "lucide-react";
 
-import jsPDF from "jspdf";
-import { Document, Packer, Paragraph, TextRun } from "docx";
-import { saveAs } from "file-saver";
+import { exportSermonPDF, exportSermonWord, exportSermonPowerPoint } from "../lib/sermonExport";
 
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
@@ -781,111 +779,19 @@ Admin contact: njokire@gmail.com`,
     navigate("/dashboard");
   }
 
-  function exportPDF() {
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-
-    const margin = 20;
-    const pageWidth = 170;
-    const pageHeight = 270;
-    let y = 25;
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(22);
-
-    const titleLines = doc.splitTextToSize(title || "Untitled Sermon", pageWidth);
-    doc.text(titleLines, margin, y);
-
-    y += titleLines.length * 9 + 6;
-
-    doc.setDrawColor(245, 158, 11);
-    doc.setLineWidth(1);
-    doc.line(margin, y, 190, y);
-
-    y += 12;
-
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text(`Category: ${category || "-"}`, margin, y);
-
-    y += 8;
-    doc.text(`Scripture: ${scripture || "-"}`, margin, y);
-
-    y += 14;
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(13);
-
-    const textContent = editor?.getText() || "";
-    const paragraphs = textContent.split("\n");
-
-    paragraphs.forEach((paragraph) => {
-      const lines = doc.splitTextToSize(paragraph, pageWidth);
-
-      lines.forEach((line) => {
-        if (y > pageHeight) {
-          doc.addPage();
-          y = 25;
-        }
-
-        doc.text(line, margin, y);
-        y += 7;
-      });
-
-      y += 4;
-    });
-
-    doc.save(`${title || "sermon"}.pdf`);
+  async function exportPDF() {
+    try { await exportSermonPDF({ editor, title, category, scripture }); }
+    catch (error) { console.error('PDF export failed', error); alert('PDF export failed. Please try again.'); }
   }
 
   async function exportWord() {
-    const textContent = editor?.getText() || "";
+    try { await exportSermonWord({ editor, title, category, scripture }); }
+    catch (error) { console.error('Word export failed', error); alert('Word export failed. Please try again.'); }
+  }
 
-    const doc = new Document({
-      sections: [
-        {
-          children: [
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: title || "Untitled Sermon",
-                  bold: true,
-                  size: 40,
-                }),
-              ],
-              spacing: { after: 300 },
-            }),
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: `Category: ${category || "-"}`,
-                  bold: true,
-                }),
-              ],
-              spacing: { after: 200 },
-            }),
-            new Paragraph({
-              children: [
-                new TextRun({
-                  text: `Scripture: ${scripture || "-"}`,
-                  italics: true,
-                }),
-              ],
-              spacing: { after: 400 },
-            }),
-            ...textContent.split("\n").map(
-              (line) =>
-                new Paragraph({
-                  children: [new TextRun({ text: line, size: 26 })],
-                  spacing: { after: 180 },
-                })
-            ),
-          ],
-        },
-      ],
-    });
-
-    const blob = await Packer.toBlob(doc);
-    saveAs(blob, `${title || "sermon"}.docx`);
+  async function exportPowerPoint() {
+    try { await exportSermonPowerPoint({ editor, title, category, scripture }); }
+    catch (error) { console.error('PowerPoint export failed', error); alert('PowerPoint export failed. Please try again.'); }
   }
 
   return (
@@ -925,6 +831,10 @@ Admin contact: njokire@gmail.com`,
 
           <button style={secondaryButton} onClick={exportWord}>
             <Download size={18} /> Word
+          </button>
+
+          <button style={secondaryButton} onClick={exportPowerPoint}>
+            <Download size={18} /> PowerPoint
           </button>
 
           {id && (
